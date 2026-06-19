@@ -76,6 +76,7 @@ class Store {
     let tread = 0;
     let twrite = 0;
     let tcost = 0;
+    const requests = new Set();
     for (const t of convo.turns) {
       t.cost_usd = this.pricing.cost(t.model, t);
       tin += t.input_tokens;
@@ -83,6 +84,7 @@ class Store {
       tread += t.cache_read_tokens;
       twrite += t.cache_write_tokens;
       tcost += t.cost_usd;
+      requests.add(t.request_index == null ? t.prompt || t.turn_index : t.request_index);
     }
     convo.total_input_tokens = tin;
     convo.total_output_tokens = tout;
@@ -90,6 +92,7 @@ class Store {
     convo.total_cache_write_tokens = twrite;
     convo.total_cost_usd = tcost;
     convo.turn_count = convo.turns.length;
+    convo.human_request_count = requests.size;
   }
 
   _listItem(c) {
@@ -106,6 +109,7 @@ class Store {
       total_cache_write_tokens: c.total_cache_write_tokens,
       total_cost_usd: c.total_cost_usd,
       turn_count: c.turn_count,
+      human_request_count: c.human_request_count,
     };
   }
 
@@ -121,6 +125,8 @@ class Store {
     if (!c) return null;
     return c.turns.map((t) => ({
       turn_index: t.turn_index,
+      request_index: t.request_index,
+      human_request: t.human_request || t.prompt || '',
       timestamp: t.timestamp,
       model: t.model,
       prompt: t.prompt || '',

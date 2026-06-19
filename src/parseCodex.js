@@ -67,6 +67,7 @@ function parseCodexFile(filePath) {
   let prev = null; // last cumulative totals: {input, cached, output, total}
   let turnIndex = 0;
   let currentPrompt = ''; // most recent human prompt; tagged onto each turn
+  let currentRequestIndex = -1; // increments for each genuine human request
 
   for (const line of lines) {
     const s = line.trim();
@@ -106,6 +107,7 @@ function parseCodexFile(filePath) {
         const t = cleanTitle(msg);
         if (t) {
           currentPrompt = previewText(t);
+          currentRequestIndex += 1;
           if (!title) title = t;
         }
       }
@@ -138,6 +140,8 @@ function parseCodexFile(filePath) {
 
       turns.push({
         turn_index: turnIndex++,
+        request_index: currentRequestIndex >= 0 ? currentRequestIndex : 0,
+        human_request: currentPrompt,
         timestamp: ts || lastActiveAt,
         model: curModel || 'gpt-5-codex',
         prompt: currentPrompt,

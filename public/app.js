@@ -10,6 +10,7 @@ const state = {
   summary: null,
   selectedId: null,
   turnsCache: null, // {id, turns, conversation}
+  activeRequestKey: null,
   filters: { search: '', source: '', project: '', from: '', to: '' },
 };
 
@@ -238,7 +239,7 @@ function renderList() {
       `<span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span>` +
       `<div class="conv-main">` +
         `<div class="conv-title">${esc(c.title)}</div>` +
-        `<div class="conv-sub"><span class="proj">${esc(c.project)}</span><span>${c.turn_count} turns</span><span>${fmtTokens(tokens)} tok</span></div>` +
+        `<div class="conv-sub"><span class="proj">${esc(c.project)}</span><span>${c.human_request_count || 0} human req</span><span>${c.turn_count} LLM calls</span><span>${fmtTokens(tokens)} tok</span></div>` +
       `</div>` +
       `<div class="conv-right">` +
         `<div class="conv-cost">${fmtCost(c.total_cost_usd)}</div>` +
@@ -252,6 +253,7 @@ function renderList() {
 /* ---------- detail view ---------- */
 async function selectConversation(id) {
   state.selectedId = id;
+  closeRequestDialog();
   renderList();
   await loadTurns(id, false);
 }
@@ -266,12 +268,60 @@ async function loadTurns(id, isRefresh) {
   }
 }
 
-// 80th-percentile cost threshold: turns at/above it are the top 20%.
+// 80th-percentile cost threshold: LLM calls at/above it are the top 20%.
 function hotThreshold(turns) {
   const costs = turns.map((t) => t.cost_usd).filter((c) => c > 0).sort((a, b) => a - b);
-  if (costs.length < 5) return Infinity; // not enough turns to single out
+  if (costs.length < 5) return Infinity; // not enough calls to single out
   const idx = Math.ceil(costs.length * 0.8) - 1;
   return costs[Math.max(0, Math.min(idx, costs.length - 1))];
+}
+
+function humanRequestKey(t) {
+  if (t.request_index != null) return String(t.request_index);
+  const request = t.human_request || t.prompt || '';
+  return request ? `prompt:${request}` : `turn:${t.turn_index}`;
+}
+
+function groupHumanRequests(turns) {
+  const groups = new Map();
+  for (const t of turns) {
+    const key = humanRequestKey(t);
+    let g = groups.get(key);
+    if (!g) {
+      g = {
+        key,
+        request_index: t.request_index,
+        human_request: t.human_request || t.prompt || '',
+        started_at: t.timestamp,
+        last_active_at: t.timestamp,
+        calls: [],
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_read_tokens: 0,
+        cache_write_tokens: 0,
+        cost_usd: 0,
+      };
+      groups.set(key, g);
+    }
+    g.calls.push(t);
+    if (!g.started_at || String(t.timestamp).localeCompare(String(g.started_at)) < 0) g.started_at = t.timestamp;
+    if (!g.last_active_at || String(t.timestamp).localeCompare(String(g.last_active_at)) > 0) g.last_active_at = t.timestamp;
+    g.input_tokens += t.input_tokens || 0;
+    g.output_tokens += t.output_tokens || 0;
+    g.cache_read_tokens += t.cache_read_tokens || 0;
+    g.cache_write_tokens += t.cache_write_tokens || 0;
+    g.cost_usd += t.cost_usd || 0;
+  }
+  return [...groups.values()];
+}
+
+function requestNumber(_g, groupIndex) {
+  return groupIndex + 1;
+}
+
+function requestPreview(text, n) {
+  const request = text || '';
+  return request.length > n ? request.slice(0, n).trimEnd() + '…' : request;
 }
 
 function renderDetail() {
@@ -281,38 +331,39 @@ function renderDetail() {
   el.hidden = false;
 
   // Preserve scroll position across re-renders (e.g. 30-second auto-refresh).
-  const prevWrap = el.querySelector('.turns-wrap');
+  const prevWrap = el.querySelector('.requests-wrap');
   const savedScroll = prevWrap ? prevWrap.scrollTop : 0;
 
   const tokens = c.total_input_tokens + c.total_output_tokens + c.total_cache_read_tokens + c.total_cache_write_tokens;
-  const threshold = hotThreshold(turns);
+  const requests = groupHumanRequests(turns);
+  state.turnsCache.humanRequests = requests;
 
-  // Show newest turns first; hotThreshold uses the original array (cost only).
-  const sortedTurns = [...turns].reverse();
+  // Show newest human requests first; calls inside the dialog remain chronological.
+  const sortedRequests = [...requests].reverse();
 
   const totals = `
     <div class="totals-grid">
-      <div class="tstat"><div class="tstat-label">Input</div><div class="tstat-value">${fmtTokens(c.total_input_tokens)}</div></div>
+      <div class="tstat"><div class="tstat-label">Fresh input</div><div class="tstat-value">${fmtTokens(c.total_input_tokens)}</div></div>
       <div class="tstat"><div class="tstat-label">Output</div><div class="tstat-value">${fmtTokens(c.total_output_tokens)}</div></div>
       <div class="tstat"><div class="tstat-label">Cache read</div><div class="tstat-value">${fmtTokens(c.total_cache_read_tokens)}</div></div>
       <div class="tstat"><div class="tstat-label">Cache write</div><div class="tstat-value">${fmtTokens(c.total_cache_write_tokens)}</div></div>
       <div class="tstat cost"><div class="tstat-label">Total cost</div><div class="tstat-value">${fmtCost(c.total_cost_usd)}</div></div>
     </div>`;
 
-  const rows = sortedTurns.map((t) => {
-    const hot = isFinite(threshold) && t.cost_usd >= threshold && t.cost_usd > 0;
-    const prompt = t.prompt || '';
-    const promptShort = prompt.length > 36 ? prompt.slice(0, 36) + '…' : prompt;
-    return `<tr class="${hot ? 'hot' : ''}">
-      <td class="l">${t.turn_index + 1}</td>
-      <td class="l ts-cell">${fmtDate(t.timestamp)}</td>
-      <td class="l model-cell">${esc(t.model)}</td>
-      <td class="l prompt-cell" title="${esc(prompt)}">${esc(promptShort) || '<span class="dim">—</span>'}</td>
-      <td>${fmtTokensFull(t.input_tokens)}</td>
-      <td>${fmtTokensFull(t.output_tokens)}</td>
-      <td>${fmtTokensFull(t.cache_read_tokens)}</td>
-      <td>${fmtTokensFull(t.cache_write_tokens)}</td>
-      <td class="cost">${fmtCost(t.cost_usd)}${hot ? '<span class="hot-flag">▲</span>' : ''}</td>
+  const rows = sortedRequests.map((g, i) => {
+    const chronologicalIndex = requests.indexOf(g);
+    const request = g.human_request || '';
+    const requestShort = requestPreview(request, 68);
+    return `<tr class="request-row" data-request-key="${esc(g.key)}" tabindex="0" role="button" aria-label="Open LLM calls for human request ${requestNumber(g, chronologicalIndex)}">
+      <td class="l">${requestNumber(g, chronologicalIndex)}</td>
+      <td class="l ts-cell">${fmtDate(g.started_at)}</td>
+      <td class="l request-cell" title="${esc(request)}">${esc(requestShort) || '<span class="dim">—</span>'}</td>
+      <td>${fmtTokensFull(g.calls.length)}</td>
+      <td>${fmtTokensFull(g.input_tokens)}</td>
+      <td>${fmtTokensFull(g.cache_read_tokens)}</td>
+      <td>${fmtTokensFull(g.output_tokens)}</td>
+      <td>${fmtTokensFull(g.cache_write_tokens)}</td>
+      <td class="cost">${fmtCost(g.cost_usd)}</td>
     </tr>`;
   }).join('');
 
@@ -322,27 +373,130 @@ function renderDetail() {
       <div class="detail-sub">
         <span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span>
         <span>${esc(c.project)}</span>
-        <span>·</span><span>${c.turn_count} turns</span>
+        <span>·</span><span>${c.human_request_count || requests.length} human requests</span>
+        <span>·</span><span>${c.turn_count} LLM calls</span>
         <span>·</span><span>${fmtTokens(tokens)} tokens</span>
         <span>·</span><span>${fmtDateShort(c.started_at)} → ${fmtDateShort(c.last_active_at)}</span>
       </div>
     </div>
     ${totals}
-    <div class="turns-wrap">
-      <table class="turns">
+    <div class="requests-wrap">
+      <table class="requests">
         <thead><tr>
-          <th class="l">#</th><th class="l">Time</th><th class="l">Model</th><th class="l">Prompt</th>
-          <th>Input</th><th>Output</th><th>Cache R</th><th>Cache W</th><th>Cost</th>
+          <th class="l">#</th><th class="l">Time</th><th class="l">Human request</th><th>LLM calls</th>
+          <th>Fresh input</th><th>Cache R</th><th>Output</th><th>Cache W</th><th>Cost</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div class="legend-note">Rows highlighted in red are the top 20% most expensive turns in this conversation.</div>`;
+    <div class="legend-note">Click a human request to inspect the individual LLM calls that it triggered.</div>`;
+
+  el.querySelectorAll('.request-row').forEach((row) => {
+    row.addEventListener('click', () => openRequestDialog(row.dataset.requestKey));
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openRequestDialog(row.dataset.requestKey);
+      }
+    });
+  });
 
   if (savedScroll) {
-    const newWrap = el.querySelector('.turns-wrap');
+    const newWrap = el.querySelector('.requests-wrap');
     if (newWrap) newWrap.scrollTop = savedScroll;
   }
+
+  if (state.activeRequestKey) openRequestDialog(state.activeRequestKey);
+}
+
+function ensureRequestDialog() {
+  let dialog = document.getElementById('requestDialog');
+  if (dialog) return dialog;
+
+  dialog = document.createElement('div');
+  dialog.id = 'requestDialog';
+  dialog.className = 'dialog-backdrop';
+  dialog.hidden = true;
+  dialog.innerHTML = `
+    <div class="request-dialog" role="dialog" aria-modal="true" aria-labelledby="requestDialogTitle">
+      <div class="dialog-head">
+        <div>
+          <div class="dialog-kicker">Human request</div>
+          <h2 id="requestDialogTitle">LLM calls</h2>
+        </div>
+        <button type="button" class="dialog-close" id="requestDialogClose" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="dialog-body" id="requestDialogBody"></div>
+    </div>`;
+  document.body.appendChild(dialog);
+
+  dialog.addEventListener('click', (e) => {
+    if (e.target === dialog) closeRequestDialog();
+  });
+  dialog.querySelector('#requestDialogClose').addEventListener('click', closeRequestDialog);
+  return dialog;
+}
+
+function openRequestDialog(key) {
+  const groups = state.turnsCache && state.turnsCache.humanRequests;
+  const group = groups && groups.find((g) => g.key === key);
+  if (!group) return;
+
+  state.activeRequestKey = key;
+  const dialog = ensureRequestDialog();
+  const body = dialog.querySelector('#requestDialogBody');
+  const title = dialog.querySelector('#requestDialogTitle');
+  const chronologicalIndex = groups.indexOf(group);
+  const threshold = hotThreshold(group.calls);
+  const request = group.human_request || '';
+
+  title.textContent = `Request ${requestNumber(group, chronologicalIndex)}`;
+
+  const callRows = group.calls.map((t) => {
+    const hot = isFinite(threshold) && t.cost_usd >= threshold && t.cost_usd > 0;
+    return `<tr class="${hot ? 'hot' : ''}">
+      <td class="l">${t.turn_index + 1}</td>
+      <td class="l ts-cell">${fmtDate(t.timestamp)}</td>
+      <td class="l model-cell">${esc(t.model)}</td>
+      <td>${fmtTokensFull(t.input_tokens)}</td>
+      <td>${fmtTokensFull(t.cache_read_tokens)}</td>
+      <td>${fmtTokensFull(t.output_tokens)}</td>
+      <td>${fmtTokensFull(t.cache_write_tokens)}</td>
+      <td class="cost">${fmtCost(t.cost_usd)}${hot ? '<span class="hot-flag">▲</span>' : ''}</td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="request-full">${esc(request) || '<span class="dim">No human request text captured.</span>'}</div>
+    <div class="dialog-stats">
+      <div class="tstat"><div class="tstat-label">LLM calls</div><div class="tstat-value">${fmtTokensFull(group.calls.length)}</div></div>
+      <div class="tstat"><div class="tstat-label">Fresh input</div><div class="tstat-value">${fmtTokens(group.input_tokens)}</div></div>
+      <div class="tstat"><div class="tstat-label">Cache read</div><div class="tstat-value">${fmtTokens(group.cache_read_tokens)}</div></div>
+      <div class="tstat"><div class="tstat-label">Output</div><div class="tstat-value">${fmtTokens(group.output_tokens)}</div></div>
+      <div class="tstat cost"><div class="tstat-label">Total cost</div><div class="tstat-value">${fmtCost(group.cost_usd)}</div></div>
+    </div>
+    <div class="dialog-table-wrap">
+      <table class="turns">
+        <thead><tr>
+          <th class="l">LLM call #</th><th class="l">Time</th><th class="l">Model</th>
+          <th>Fresh input</th><th>Cache R</th><th>Output</th><th>Cache W</th><th>Cost</th>
+        </tr></thead>
+        <tbody>${callRows}</tbody>
+      </table>
+    </div>
+    <div class="legend-note">Rows highlighted in red are the top 20% most expensive LLM calls for this human request.</div>`;
+
+  dialog.hidden = false;
+  document.body.classList.add('modal-open');
+  dialog.querySelector('#requestDialogClose').focus();
+}
+
+function closeRequestDialog() {
+  const dialog = document.getElementById('requestDialog');
+  if (!dialog) return;
+  dialog.hidden = true;
+  state.activeRequestKey = null;
+  document.body.classList.remove('modal-open');
 }
 
 /* ---------- wire up filter controls ---------- */
@@ -369,6 +523,9 @@ function bindControls() {
     document.getElementById('fromDate').value = '';
     document.getElementById('toDate').value = '';
     renderList();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && state.activeRequestKey) closeRequestDialog();
   });
 }
 

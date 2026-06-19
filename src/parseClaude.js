@@ -77,6 +77,7 @@ function parseClaudeFile(filePath) {
   let lastActiveAt = null;
   let turnIndex = 0;
   let currentPrompt = ''; // most recent human prompt; tagged onto each turn
+  let currentRequestIndex = -1; // increments for each genuine human request
 
   for (const line of lines) {
     const s = line.trim();
@@ -100,6 +101,7 @@ function parseClaudeFile(filePath) {
       const t = genuineUserTitle(d);
       if (t) {
         currentPrompt = previewText(t);
+        currentRequestIndex += 1;
         if (!title) title = t;
       }
     }
@@ -122,6 +124,8 @@ function parseClaudeFile(filePath) {
 
       turns.push({
         turn_index: turnIndex++,
+        request_index: currentRequestIndex >= 0 ? currentRequestIndex : 0,
+        human_request: currentPrompt,
         timestamp: ts || lastActiveAt,
         model: msg.model || 'unknown',
         prompt: currentPrompt,
