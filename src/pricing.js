@@ -33,6 +33,19 @@ const FALLBACK_RATES = {
   'gpt-5': { input: 1.25e-6, output: 10e-6, cache_read: 0.125e-6, cache_write: 0 },
   'gpt-5-codex': { input: 1.25e-6, output: 10e-6, cache_read: 0.125e-6, cache_write: 0 },
   'gpt-5.1-codex': { input: 1.25e-6, output: 10e-6, cache_read: 0.125e-6, cache_write: 0 },
+  'gpt-5.5': { input: 1.25e-6, output: 10e-6, cache_read: 0.125e-6, cache_write: 0 },
+};
+
+const FALLBACK_CONTEXT_WINDOWS = {
+  'claude-sonnet-4-5': 200000,
+  'claude-sonnet-4-6': 200000,
+  'claude-opus-4-8': 200000,
+  'claude-opus-4-1': 200000,
+  'claude-haiku-4-5': 200000,
+  'gpt-5': 400000,
+  'gpt-5-codex': 400000,
+  'gpt-5.1-codex': 400000,
+  'gpt-5.5': 400000,
 };
 
 // The model whose rates are used for anything we cannot otherwise resolve.
@@ -42,6 +55,7 @@ class Pricing {
   constructor() {
     this._raw = {}; // raw LiteLLM map: model -> entry
     this._resolved = new Map(); // model -> {input,output,cache_read,cache_write}
+    this._contextWindows = new Map(); // model -> context window tokens
     this._loaded = false;
   }
 
@@ -164,11 +178,53 @@ class Pricing {
   }
 
   _familyRates(model) {
-    const m = model.toLowerCase();
+    const m = model.toLowerCase().replace(/^[^/]+\//, '');
     if (m.includes('opus')) return FALLBACK_RATES['claude-opus-4-8'];
     if (m.includes('haiku')) return FALLBACK_RATES['claude-haiku-4-5'];
     if (m.includes('sonnet')) return FALLBACK_RATES['claude-sonnet-4-5'];
     if (m.includes('codex') || m.startsWith('gpt-5')) return FALLBACK_RATES['gpt-5-codex'];
+    return null;
+  }
+
+  /** Resolve the model context window used for pre-generation occupancy. */
+  contextWindow(model) {
+    const key = model || DEFAULT_MODEL;
+    if (this._contextWindows.has(key)) return this._contextWindows.get(key);
+    const windowTokens = this._resolveContextWindow(key);
+    this._contextWindows.set(key, windowTokens);
+    return windowTokens;
+  }
+
+  _resolveContextWindow(model) {
+    if (!model || model === '<synthetic>' || model === 'unknown') return 0;
+
+    const entry = this._lookupRaw(model);
+    if (entry) {
+      const raw =
+        entry.max_input_tokens ||
+        entry.max_tokens ||
+        entry.max_context_window_tokens ||
+        entry.context_window_tokens ||
+        entry.context_window ||
+        entry.max_total_tokens;
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+
+    if (FALLBACK_CONTEXT_WINDOWS[model]) return FALLBACK_CONTEXT_WINDOWS[model];
+
+    const fam = this._familyContextWindow(model);
+    if (fam) return fam;
+
+    return FALLBACK_CONTEXT_WINDOWS[DEFAULT_MODEL];
+  }
+
+  _familyContextWindow(model) {
+    const m = model.toLowerCase().replace(/^[^/]+\//, '');
+    if (m.includes('opus')) return FALLBACK_CONTEXT_WINDOWS['claude-opus-4-8'];
+    if (m.includes('haiku')) return FALLBACK_CONTEXT_WINDOWS['claude-haiku-4-5'];
+    if (m.includes('sonnet')) return FALLBACK_CONTEXT_WINDOWS['claude-sonnet-4-5'];
+    if (m.includes('codex') || m.startsWith('gpt-5')) return FALLBACK_CONTEXT_WINDOWS['gpt-5-codex'];
     return null;
   }
 

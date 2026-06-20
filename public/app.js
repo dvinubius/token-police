@@ -5,6 +5,18 @@
 
 const REFRESH_MS = 30000;
 
+const FALLBACK_CONTEXT_WINDOWS = {
+  'claude-sonnet-4-5': 200000,
+  'claude-sonnet-4-6': 200000,
+  'claude-opus-4-8': 200000,
+  'claude-opus-4-1': 200000,
+  'claude-haiku-4-5': 200000,
+  'gpt-5': 400000,
+  'gpt-5-codex': 400000,
+  'gpt-5.1-codex': 400000,
+  'gpt-5.5': 400000,
+};
+
 const state = {
   conversations: [],
   summary: null,
@@ -31,6 +43,14 @@ function fmtCost(n) {
   if (n < 0.01) return '$' + n.toFixed(4);
   if (n < 1) return '$' + n.toFixed(3);
   return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtPct(n) {
+  n = n || 0;
+  if (n <= 0) return '0%';
+  const pct = n * 100;
+  if (pct < 0.1) return '<0.1%';
+  if (pct < 10) return pct.toFixed(1) + '%';
+  return pct.toFixed(0) + '%';
 }
 function fmtDate(ts) {
   if (!ts) return '—';
@@ -59,6 +79,46 @@ function srcClass(s) { return s === 'codex' ? 'codex' : 'cc'; }
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+function normalizedModel(model) {
+  return String(model || '').toLowerCase().replace(/^[^/]+\//, '');
+}
+
+function fallbackContextWindow(model) {
+  const m = normalizedModel(model);
+  if (!m || m === '<synthetic>' || m === 'unknown') return 0;
+  if (FALLBACK_CONTEXT_WINDOWS[m]) return FALLBACK_CONTEXT_WINDOWS[m];
+  if (m.includes('opus')) return FALLBACK_CONTEXT_WINDOWS['claude-opus-4-8'];
+  if (m.includes('haiku')) return FALLBACK_CONTEXT_WINDOWS['claude-haiku-4-5'];
+  if (m.includes('sonnet')) return FALLBACK_CONTEXT_WINDOWS['claude-sonnet-4-5'];
+  if (m.includes('codex') || m.startsWith('gpt-5')) return FALLBACK_CONTEXT_WINDOWS['gpt-5-codex'];
+  return FALLBACK_CONTEXT_WINDOWS['claude-sonnet-4-5'];
+}
+
+function contextTokensForTurn(t) {
+  return t.context_input_tokens != null
+    ? t.context_input_tokens
+    : (t.input_tokens || 0) + (t.cache_read_tokens || 0) + (t.cache_write_tokens || 0);
+}
+
+function contextWindowForTurn(t) {
+  return t.model_context_window_tokens || fallbackContextWindow(t.model);
+}
+
+function contextPctForTurn(t) {
+  const contextTokens = contextTokensForTurn(t);
+  const contextWindow = contextWindowForTurn(t);
+  return contextWindow > 0 ? contextTokens / contextWindow : 0;
+}
+
+function cacheHitPctForTurn(t) {
+  const contextTokens = contextTokensForTurn(t);
+  return contextTokens > 0 ? (t.cache_read_tokens || 0) / contextTokens : 0;
+}
+
+function latestContextTurn(group) {
+  return group.calls[group.calls.length - 1] || null;
 }
 
 /* ---------- data fetching ---------- */
@@ -354,11 +414,14 @@ function renderDetail() {
     const chronologicalIndex = requests.indexOf(g);
     const request = g.human_request || '';
     const requestShort = requestPreview(request, 68);
+    const latestTurn = latestContextTurn(g);
+    const latestContextTokens = latestTurn ? contextTokensForTurn(latestTurn) : 0;
     return `<tr class="request-row" data-request-key="${esc(g.key)}" tabindex="0" role="button" aria-label="Open LLM calls for human request ${requestNumber(g, chronologicalIndex)}">
       <td class="l">${requestNumber(g, chronologicalIndex)}</td>
       <td class="l ts-cell">${fmtDate(g.started_at)}</td>
       <td class="l request-cell" title="${esc(request)}">${esc(requestShort) || '<span class="dim">—</span>'}</td>
       <td>${fmtTokensFull(g.calls.length)}</td>
+      <td title="${fmtTokensFull(latestContextTokens)} context tokens">${fmtTokens(latestContextTokens)}</td>
       <td>${fmtTokensFull(g.input_tokens)}</td>
       <td>${fmtTokensFull(g.cache_read_tokens)}</td>
       <td>${fmtTokensFull(g.output_tokens)}</td>
@@ -384,7 +447,7 @@ function renderDetail() {
       <table class="requests">
         <thead><tr>
           <th class="l">#</th><th class="l">Time</th><th class="l">Human request</th><th>LLM calls</th>
-          <th>Fresh input</th><th>Cache R</th><th>Output</th><th>Cache W</th><th>Cost</th>
+          <th>Context</th><th>Fresh input</th><th>Cache R</th><th>Output</th><th>Cache W</th><th>Cost</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -452,12 +515,20 @@ function openRequestDialog(key) {
 
   title.textContent = `Request ${requestNumber(group, chronologicalIndex)}`;
 
-  const callRows = group.calls.map((t) => {
+  const callRows = [...group.calls].reverse().map((t) => {
     const hot = isFinite(threshold) && t.cost_usd >= threshold && t.cost_usd > 0;
+    const contextTokens = contextTokensForTurn(t);
+    const contextWindow = contextWindowForTurn(t);
+    const contextPctTitle = contextWindow
+      ? `${fmtTokensFull(contextTokens)} / ${fmtTokensFull(contextWindow)} context tokens`
+      : `${fmtTokensFull(contextTokens)} context tokens`;
     return `<tr class="${hot ? 'hot' : ''}">
       <td class="l">${t.turn_index + 1}</td>
       <td class="l ts-cell">${fmtDate(t.timestamp)}</td>
       <td class="l model-cell">${esc(t.model)}</td>
+      <td title="${fmtTokensFull(contextTokens)} context tokens">${fmtTokens(contextTokens)}</td>
+      <td title="${esc(contextPctTitle)}">${fmtPct(contextPctForTurn(t))}</td>
+      <td>${fmtPct(cacheHitPctForTurn(t))}</td>
       <td>${fmtTokensFull(t.input_tokens)}</td>
       <td>${fmtTokensFull(t.cache_read_tokens)}</td>
       <td>${fmtTokensFull(t.output_tokens)}</td>
@@ -479,6 +550,7 @@ function openRequestDialog(key) {
       <table class="turns">
         <thead><tr>
           <th class="l">LLM call #</th><th class="l">Time</th><th class="l">Model</th>
+          <th>Context</th><th>Context %</th><th>Cache hit %</th>
           <th>Fresh input</th><th>Cache R</th><th>Output</th><th>Cache W</th><th>Cost</th>
         </tr></thead>
         <tbody>${callRows}</tbody>

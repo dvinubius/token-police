@@ -79,6 +79,15 @@ class Store {
     const requests = new Set();
     for (const t of convo.turns) {
       t.cost_usd = this.pricing.cost(t.model, t);
+      t.context_input_tokens =
+        (t.input_tokens || 0) + (t.cache_read_tokens || 0) + (t.cache_write_tokens || 0);
+      t.model_context_window_tokens = this.pricing.contextWindow(t.model);
+      t.context_window_used_pct =
+        t.model_context_window_tokens > 0 ? t.context_input_tokens / t.model_context_window_tokens : 0;
+      t.cache_hit_pct = t.context_input_tokens > 0 ? (t.cache_read_tokens || 0) / t.context_input_tokens : 0;
+      t.fresh_pct = t.context_input_tokens > 0 ? (t.input_tokens || 0) / t.context_input_tokens : 0;
+      t.cache_write_pct =
+        t.context_input_tokens > 0 ? (t.cache_write_tokens || 0) / t.context_input_tokens : 0;
       tin += t.input_tokens;
       tout += t.output_tokens;
       tread += t.cache_read_tokens;
@@ -134,6 +143,12 @@ class Store {
       output_tokens: t.output_tokens,
       cache_read_tokens: t.cache_read_tokens,
       cache_write_tokens: t.cache_write_tokens,
+      context_input_tokens: t.context_input_tokens,
+      model_context_window_tokens: t.model_context_window_tokens,
+      context_window_used_pct: t.context_window_used_pct,
+      cache_hit_pct: t.cache_hit_pct,
+      fresh_pct: t.fresh_pct,
+      cache_write_pct: t.cache_write_pct,
       cost_usd: t.cost_usd,
     }));
   }
