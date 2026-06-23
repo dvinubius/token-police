@@ -1,0 +1,58 @@
+# Component Inventory
+
+## Navigation And Shell
+
+| Component | Responsibility | Current implementation anchor |
+|---|---|---|
+| App shell | Owns global page structure and current page visibility. | `public/index.html`, `setPage()` |
+| Product identity | Displays product name and mark. | `.brand` |
+| Page tabs | Switch between Stats and Sessions. | `.page-tab`, `setPage()` |
+| Refresh indicator | Shows live or offline fetch status. | `#refreshIndicator`, `pulse()`, `refresh()` |
+
+## Stats Components
+
+| Component | Responsibility | Current implementation anchor |
+|---|---|---|
+| Global stat | Displays one aggregate metric. | `.gstat`, `renderGlobal()` |
+| Daily usage chart | Shows 30-day source-split token usage. | `#chart`, `renderChart()` |
+| Source legend | Identifies chart source segments. | `.legend` |
+| Top Sessions list | Shows five Sessions ordered by Estimated cost. | `#topList`, `renderTop()` |
+| Top Session item | Navigates to selected Session detail. | `renderTop()` |
+
+## Sessions Components
+
+| Component | Responsibility | Current implementation anchor |
+|---|---|---|
+| Filter bar | Groups all Session filters. | `.filters`, `bindControls()` |
+| Search input | Filters by Session title or project. | `#searchInput` |
+| Source filter | Filters by Claude Code or Codex. | `#sourceFilter` |
+| Project filter | Filters by discovered project. | `#projectFilter`, `populateProjectFilter()` |
+| Date range filters | Filter by last active date. | `#fromDate`, `#toDate` |
+| Clear filters control | Resets filter state. | `#clearFilters` |
+| List metadata | Displays filtered count and Estimated cost. | `#listMeta` |
+| Session list | Contains selectable Session rows. | `#sessionList`, `renderList()` |
+| Session row | Selects a Session and summarizes its totals. | `.session-row` |
+
+## Detail Components
+
+| Component | Responsibility | Current implementation anchor |
+|---|---|---|
+| Empty detail | Placeholder before Session selection. | `#emptyDetail` |
+| Detail pane | Displays selected Session inspection. | `#detailPane`, `renderDetail()` |
+| Session title block | Shows full selected Session title. | `.session-title-card` |
+| Total stat | Displays one selected-Session aggregate. | `.tstat` |
+| Human request table | Lists Human requests and token/cost summaries. | `.requests`, `groupHumanRequests()` |
+| Human request row | Opens the LLM Call Dialog. | `.request-row` |
+
+## Dialog Components
+
+| Component | Responsibility | Current implementation anchor |
+|---|---|---|
+| Dialog backdrop | Modal layer and backdrop-click close target. | `.dialog-backdrop`, `ensureRequestDialog()` |
+| Request dialog | Contains one Human request's LLM calls. | `.request-dialog`, `openRequestDialog()` |
+| Dialog close control | Closes the dialog. | `#requestDialogClose` |
+| Full request text | Shows untruncated Human request text. | `.request-full` |
+| Dialog stat | Displays one Human request aggregate. | `.dialog-stats .tstat` |
+| LLM call table | Lists individual LLM calls. | `.llm-calls` |
+| High-cost marker | Marks top-cost calls within a request. | `hotEstimatedCostThreshold()` |
+
