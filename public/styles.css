@@ -19,12 +19,21 @@
 * { box-sizing: border-box; }
 
 html, body {
+  height: 100%;
   margin: 0;
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
   font-size: 14px;
   line-height: 1.4;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 h1, h2 { margin: 0; font-weight: 600; }
@@ -76,6 +85,7 @@ h1, h2 { margin: 0; font-weight: 600; }
   border-color: var(--border);
 }
 
+.page { min-height: 0; }
 .page[hidden] { display: none !important; }
 
 .global-stats { display: flex; gap: 28px; margin-left: 8px; }
@@ -90,11 +100,13 @@ h1, h2 { margin: 0; font-weight: 600; }
 
 /* ---------- Overview ---------- */
 .overview {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 16px;
   padding: 16px 20px;
+  overflow-y: auto;
 }
 .overview > .card {
   width: 100%;
@@ -193,15 +205,25 @@ h1, h2 { margin: 0; font-weight: 600; }
 /* ---------- Main split (desktop) ---------- */
 /* List narrower, detail wider so the human-request table has room to breathe. */
 .main {
+  flex: 1;
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
   gap: 16px;
   padding: 16px 20px 24px;
-  align-items: start;
+  align-items: stretch;
+  overflow: hidden;
 }
 
 /* ---------- Filters + list ---------- */
+.list-pane {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .filters {
+  flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -224,9 +246,23 @@ input:focus, select:focus { border-color: var(--accent); }
 .ghost-btn { cursor: pointer; color: var(--text-dim); }
 .ghost-btn:hover { color: var(--text); border-color: var(--accent); }
 
-.list-meta { font-family: var(--mono); font-size: 12px; color: var(--text-faint); margin-bottom: 8px; }
+.list-meta {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-bottom: 8px;
+}
 
-.conv-list { display: flex; flex-direction: column; gap: 6px; max-height: calc(100vh - 120px); overflow-y: auto; padding-right: 4px; }
+.conv-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
 .conv-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -267,14 +303,32 @@ input:focus, select:focus { border-color: var(--accent); }
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  min-height: 168px;
-  position: sticky;
-  top: 76px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-.empty-detail { display: flex; align-items: center; justify-content: center; min-height: 168px; padding: 18px; color: var(--text-faint); }
+.empty-detail {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  color: var(--text-faint);
+}
 .empty-detail[hidden] { display: none !important; }
-.detail-content { padding: 18px; }
+.detail-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  overflow: hidden;
+}
+.detail-content[hidden] { display: none !important; }
 
+.detail-header { flex: 0 0 auto; }
 .detail-header h2 { font-size: 16px; margin-bottom: 4px; }
 .session-prompt {
   max-width: 600px;
@@ -298,6 +352,7 @@ input:focus, select:focus { border-color: var(--accent); }
 .detail-sub { display: flex; gap: 10px; align-items: center; color: var(--text-faint); font-size: 12px; margin-bottom: 14px; }
 
 .totals-grid {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
@@ -316,11 +371,14 @@ input:focus, select:focus { border-color: var(--accent); }
 
 .requests-wrap,
 .dialog-table-wrap {
-  max-height: calc(100vh - 360px);
   overflow-y: auto;
   overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+.requests-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .dialog-table-wrap { max-height: min(42vh, 420px); }
 table.turns,
@@ -377,7 +435,12 @@ table.turns tbody tr.hot td.cost { color: var(--hot); font-weight: 700; }
 }
 .hot-flag { color: var(--hot); margin-left: 5px; font-size: 10px; }
 
-.legend-note { font-size: 11px; color: var(--text-faint); margin-top: 8px; }
+.legend-note {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 8px;
+}
 .dim { color: var(--text-faint); }
 
 .modal-open { overflow: hidden; }
