@@ -18,6 +18,7 @@ const FALLBACK_CONTEXT_WINDOWS = {
 };
 
 const state = {
+  page: 'stats',
   conversations: [],
   summary: null,
   selectedId: null,
@@ -119,6 +120,33 @@ function cacheHitPctForTurn(t) {
 
 function latestContextTurn(group) {
   return group.calls[group.calls.length - 1] || null;
+}
+
+/* ---------- page navigation ---------- */
+function pageFromHash() {
+  const page = String(location.hash || '').replace(/^#/, '');
+  return page === 'sessions' ? 'sessions' : 'stats';
+}
+
+function setPage(page, updateHash = true) {
+  state.page = page === 'sessions' ? 'sessions' : 'stats';
+
+  document.querySelectorAll('.page').forEach((el) => {
+    el.hidden = el.dataset.page !== state.page;
+  });
+
+  document.querySelectorAll('.page-tab').forEach((tab) => {
+    const active = tab.dataset.pageTarget === state.page;
+    tab.classList.toggle('active', active);
+    if (active) tab.setAttribute('aria-current', 'page');
+    else tab.removeAttribute('aria-current');
+  });
+
+  if (state.page !== 'sessions') closeRequestDialog();
+
+  if (updateHash && location.hash !== `#${state.page}`) {
+    history.replaceState(null, '', `#${state.page}`);
+  }
 }
 
 /* ---------- data fetching ---------- */
@@ -279,14 +307,14 @@ function renderList() {
   const filtered = applyFilters(state.conversations);
   const totalCost = filtered.reduce((s, c) => s + c.total_cost_usd, 0);
   document.getElementById('listMeta').textContent =
-    `${filtered.length} conversation${filtered.length === 1 ? '' : 's'} · ${fmtCost(totalCost)}`;
+    `${filtered.length} session${filtered.length === 1 ? '' : 's'} · ${fmtCost(totalCost)}`;
 
   wrap.replaceChildren();
   if (!filtered.length) {
     const empty = document.createElement('div');
     empty.className = 'dim';
     empty.style.padding = '16px';
-    empty.textContent = 'No conversations match the current filters.';
+    empty.textContent = 'No sessions match the current filters.';
     wrap.appendChild(empty);
     return;
   }
@@ -312,6 +340,7 @@ function renderList() {
 
 /* ---------- detail view ---------- */
 async function selectConversation(id) {
+  setPage('sessions');
   state.selectedId = id;
   closeRequestDialog();
   renderList();
@@ -573,6 +602,11 @@ function closeRequestDialog() {
 
 /* ---------- wire up filter controls ---------- */
 function bindControls() {
+  document.querySelectorAll('.page-tab').forEach((tab) => {
+    tab.addEventListener('click', () => setPage(tab.dataset.pageTarget));
+  });
+  window.addEventListener('hashchange', () => setPage(pageFromHash(), false));
+
   const search = document.getElementById('searchInput');
   search.addEventListener('input', () => { state.filters.search = search.value; renderList(); });
   document.getElementById('sourceFilter').addEventListener('change', (e) => {
@@ -602,6 +636,7 @@ function bindControls() {
 }
 
 /* ---------- boot ---------- */
+setPage(pageFromHash(), false);
 bindControls();
 refresh(true);
 setInterval(() => refresh(false), REFRESH_MS);

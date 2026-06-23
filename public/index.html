@@ -12,10 +12,14 @@
         <span class="logo">◆</span>
         <h1>Token Dashboard</h1>
       </div>
+      <nav class="page-nav" aria-label="Primary">
+        <button type="button" class="page-tab active" data-page-target="stats" aria-current="page">Stats</button>
+        <button type="button" class="page-tab" data-page-target="sessions">Sessions</button>
+      </nav>
       <div class="global-stats" id="globalStats">
         <div class="gstat"><span class="gstat-label">Total spend</span><span class="gstat-value" id="gsCost">—</span></div>
         <div class="gstat"><span class="gstat-label">Total tokens</span><span class="gstat-value" id="gsTokens">—</span></div>
-        <div class="gstat"><span class="gstat-label">Conversations</span><span class="gstat-value" id="gsConvos">—</span></div>
+        <div class="gstat"><span class="gstat-label">Sessions</span><span class="gstat-value" id="gsConvos">—</span></div>
         <div class="gstat"><span class="gstat-label">LLM calls</span><span class="gstat-value" id="gsTurns">—</span></div>
       </div>
       <div class="refresh" id="refreshIndicator" title="Auto-refreshes every 30s">
@@ -23,7 +27,7 @@
       </div>
     </header>
 
-    <section class="overview" id="overview">
+    <section class="page overview stats-page" id="statsPage" data-page="stats">
       <div class="card chart-card">
         <div class="card-head">
           <h2>Daily token usage — last 30 days</h2>
@@ -40,7 +44,7 @@
       </div>
     </section>
 
-    <main class="main">
+    <main class="page main sessions-page" id="sessionsPage" data-page="sessions" hidden>
       <section class="list-pane">
         <div class="filters">
           <input type="search" id="searchInput" placeholder="Search title or project…" />
@@ -60,7 +64,7 @@
 
       <section class="detail-pane" id="detailPane">
         <div class="empty-detail" id="emptyDetail">
-          <p>Select a conversation to see its human-request token breakdown.</p>
+          <p>Select a session to see its human-request token breakdown.</p>
         </div>
         <div class="detail-content" id="detailContent" hidden></div>
       </section>

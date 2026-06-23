@@ -18,6 +18,7 @@ const { Store } = require('./src/store');
 const { Watcher } = require('./src/watcher');
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 7899;
+const HOST = process.env.HOST || '127.0.0.1';
 const HOME = os.homedir();
 const CLAUDE_DIR = path.join(HOME, '.claude', 'projects');
 const CODEX_DIR = path.join(HOME, '.codex', 'sessions');
@@ -79,8 +80,8 @@ async function main() {
     res.json({ ok: true, conversations: store.conversations.size });
   });
 
-  app.listen(PORT, () => {
-    const url = `http://localhost:${PORT}`;
+  app.listen(PORT, HOST, () => {
+    const url = `http://${HOST}:${PORT}`;
     console.log(`\n[token-dashboard] Serving on ${url}`);
     console.log('[token-dashboard] Watching:');
     console.log(`    ${CLAUDE_DIR}`);
