@@ -2,7 +2,7 @@
 
 /*
  * Parse one Claude Code transcript (~/.claude/projects/<encoded>/<uuid>.jsonl)
- * into a normalized conversation record.
+ * into a normalized Session record.
  *
  * Token semantics (Anthropic): message.usage.input_tokens already excludes
  * cached tokens, so the four buckets are disjoint:
@@ -26,7 +26,7 @@ function extractUserText(content) {
   return '';
 }
 
-function isToolResultTurn(content) {
+function isToolResult(content) {
   return (
     Array.isArray(content) &&
     content.length > 0 &&
@@ -41,20 +41,18 @@ function cleanTitle(text) {
     .trim();
 }
 
-// Cap a prompt to a short preview so storing it per-turn stays cheap. The same
-// string reference is shared across all turns of one exchange, so memory is
-// bounded by the number of distinct prompts, not the number of turns.
-const PROMPT_PREVIEW_MAX = 160;
+// Cap a Human request to a short preview so storing it per LLM call stays cheap.
+const HUMAN_REQUEST_PREVIEW_MAX = 160;
 function previewText(text) {
   const t = String(text);
-  return t.length > PROMPT_PREVIEW_MAX ? t.slice(0, PROMPT_PREVIEW_MAX) : t;
+  return t.length > HUMAN_REQUEST_PREVIEW_MAX ? t.slice(0, HUMAN_REQUEST_PREVIEW_MAX) : t;
 }
 
-// Decide whether a user line is a genuine human prompt worth using as a title.
+// Decide whether a user line is a genuine Human request worth using as a title.
 function genuineUserTitle(d) {
   if (d.isMeta) return '';
   const content = d.message && d.message.content;
-  if (isToolResultTurn(content)) return '';
+  if (isToolResult(content)) return '';
   const raw = extractUserText(content);
   if (!raw) return '';
   const trimmed = raw.trim();
@@ -68,16 +66,16 @@ function parseClaudeFile(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8');
   const lines = raw.split('\n');
 
-  const turns = [];
+  const llmCalls = [];
   const seen = new Set();
   let title = '';
   let cwd = '';
   let sessionId = '';
   let startedAt = null;
   let lastActiveAt = null;
-  let turnIndex = 0;
-  let currentPrompt = ''; // most recent human prompt; tagged onto each turn
-  let currentRequestIndex = -1; // increments for each genuine human request
+  let llmCallIndex = 0;
+  let currentHumanRequest = ''; // most recent Human request; tagged onto each LLM call
+  let currentHumanRequestIndex = -1; // increments for each genuine Human request
 
   for (const line of lines) {
     const s = line.trim();
@@ -100,8 +98,8 @@ function parseClaudeFile(filePath) {
     if (d.type === 'user') {
       const t = genuineUserTitle(d);
       if (t) {
-        currentPrompt = previewText(t);
-        currentRequestIndex += 1;
+        currentHumanRequest = previewText(t);
+        currentHumanRequestIndex += 1;
         if (!title) title = t;
       }
     }
@@ -114,21 +112,20 @@ function parseClaudeFile(filePath) {
       // Claude Code writes one JSONL line per streaming chunk / content block,
       // and every line for the same assistant message repeats the SAME message
       // id and the SAME full usage. The usage is charged once per API response,
-      // so we de-dupe by message id (one message.id = one billable turn) and
+      // so we de-dupe by message id (one message.id = one billable LLM call) and
       // only count the first line we see for it.
-      const turnKey = msg.id || d.uuid;
-      if (turnKey) {
-        if (seen.has(turnKey)) continue;
-        seen.add(turnKey);
+      const llmCallKey = msg.id || d.uuid;
+      if (llmCallKey) {
+        if (seen.has(llmCallKey)) continue;
+        seen.add(llmCallKey);
       }
 
-      turns.push({
-        turn_index: turnIndex++,
-        request_index: currentRequestIndex >= 0 ? currentRequestIndex : 0,
-        human_request: currentPrompt,
+      llmCalls.push({
+        llm_call_index: llmCallIndex++,
+        human_request_index: currentHumanRequestIndex >= 0 ? currentHumanRequestIndex : 0,
+        human_request_text: currentHumanRequest,
         timestamp: ts || lastActiveAt,
         model: msg.model || 'unknown',
-        prompt: currentPrompt,
         input_tokens: usage.input_tokens || 0,
         output_tokens: usage.output_tokens || 0,
         cache_read_tokens: usage.cache_read_input_tokens || 0,
@@ -144,13 +141,13 @@ function parseClaudeFile(filePath) {
     id: path.basename(filePath, '.jsonl'),
     source: 'claude-code',
     project,
-    title: title || '(no prompt)',
+    title: title || '(no human request)',
     cwd,
     sessionId,
     filePath,
     started_at: startedAt,
     last_active_at: lastActiveAt,
-    turns,
+    llm_calls: llmCalls,
   };
 }
 

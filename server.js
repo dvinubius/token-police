@@ -62,14 +62,14 @@ async function main() {
   const app = express();
   app.use(express.static(path.join(__dirname, 'public')));
 
-  app.get('/api/conversations', (_req, res) => {
-    res.json(store.listConversations());
+  app.get('/api/sessions', (_req, res) => {
+    res.json(store.listSessions());
   });
 
-  app.get('/api/conversations/:id/turns', (req, res) => {
-    const turns = store.getTurns(req.params.id);
-    if (turns === null) return res.status(404).json({ error: 'conversation not found' });
-    res.json({ conversation: store.getConversationMeta(req.params.id), turns });
+  app.get('/api/sessions/:id/llm-calls', (req, res) => {
+    const llmCalls = store.getLlmCalls(req.params.id);
+    if (llmCalls === null) return res.status(404).json({ error: 'session not found' });
+    res.json({ session: store.getSessionMeta(req.params.id), llm_calls: llmCalls });
   });
 
   app.get('/api/summary', (_req, res) => {
@@ -77,7 +77,7 @@ async function main() {
   });
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, conversations: store.conversations.size });
+    res.json({ ok: true, sessions: store.sessions.size });
   });
 
   app.listen(PORT, HOST, () => {

@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * In-memory store of all parsed conversations. Each conversation is keyed by id;
+ * In-memory store of all parsed Sessions. Each Session is keyed by id;
  * re-parsing a file replaces its record wholesale (simple and robust for a
  * local tool — transcripts are not large enough to need incremental tailing).
  */
@@ -30,144 +30,155 @@ function dayKey(ts) {
 class Store {
   constructor(pricing) {
     this.pricing = pricing;
-    this.conversations = new Map(); // id -> enriched conversation
+    this.sessions = new Map(); // id -> enriched Session
     this.fileToId = new Map(); // filePath -> id
   }
 
-  /** Parse (or re-parse) a file and upsert the resulting conversation. */
+  /** Parse (or re-parse) a file and upsert the resulting Session. */
   upsertFromFile(source, filePath) {
-    let convo;
+    let session;
     try {
-      convo = source === 'codex' ? parseCodexFile(filePath) : parseClaudeFile(filePath);
+      session = source === 'codex' ? parseCodexFile(filePath) : parseClaudeFile(filePath);
     } catch (err) {
       console.warn(`[store] Failed to parse ${filePath}: ${err.message}`);
       return;
     }
-    if (!convo) return;
+    if (!session) return;
 
-    // Drop empty conversations (no billable turns) to keep the list meaningful.
-    if (!convo.turns.length) {
+    // Drop empty Sessions (no billable LLM calls) to keep the list meaningful.
+    if (!session.llm_calls.length) {
       this.removeFile(filePath);
       return;
     }
 
-    this._enrich(convo);
+    this._enrich(session);
 
     // If this file previously mapped to a different id, clean that up.
     const prevId = this.fileToId.get(filePath);
-    if (prevId && prevId !== convo.id) this.conversations.delete(prevId);
+    if (prevId && prevId !== session.id) this.sessions.delete(prevId);
 
-    this.fileToId.set(filePath, convo.id);
-    this.conversations.set(convo.id, convo);
+    this.fileToId.set(filePath, session.id);
+    this.sessions.set(session.id, session);
   }
 
   removeFile(filePath) {
     const id = this.fileToId.get(filePath);
     if (id) {
-      this.conversations.delete(id);
+      this.sessions.delete(id);
       this.fileToId.delete(filePath);
     }
   }
 
-  /** Compute per-turn cost and conversation-level totals. */
-  _enrich(convo) {
+  /** Compute per-LLM-call estimated cost and Session-level totals. */
+  _enrich(session) {
     let tin = 0;
     let tout = 0;
     let tread = 0;
     let twrite = 0;
-    let tcost = 0;
+    let totalEstimatedCost = 0;
     const requests = new Set();
-    for (const t of convo.turns) {
-      t.cost_usd = this.pricing.cost(t.model, t);
-      t.context_input_tokens =
-        (t.input_tokens || 0) + (t.cache_read_tokens || 0) + (t.cache_write_tokens || 0);
-      t.model_context_window_tokens = this.pricing.contextWindow(t.model);
-      t.context_window_used_pct =
-        t.model_context_window_tokens > 0 ? t.context_input_tokens / t.model_context_window_tokens : 0;
-      t.cache_hit_pct = t.context_input_tokens > 0 ? (t.cache_read_tokens || 0) / t.context_input_tokens : 0;
-      t.fresh_pct = t.context_input_tokens > 0 ? (t.input_tokens || 0) / t.context_input_tokens : 0;
-      t.cache_write_pct =
-        t.context_input_tokens > 0 ? (t.cache_write_tokens || 0) / t.context_input_tokens : 0;
-      tin += t.input_tokens;
-      tout += t.output_tokens;
-      tread += t.cache_read_tokens;
-      twrite += t.cache_write_tokens;
-      tcost += t.cost_usd;
-      requests.add(t.request_index == null ? t.prompt || t.turn_index : t.request_index);
+    for (const llmCall of session.llm_calls) {
+      llmCall.estimated_cost_usd = this.pricing.estimatedCost(llmCall.model, llmCall);
+      llmCall.context_input_tokens =
+        (llmCall.input_tokens || 0) + (llmCall.cache_read_tokens || 0) + (llmCall.cache_write_tokens || 0);
+      llmCall.model_context_window_tokens = this.pricing.contextWindow(llmCall.model);
+      llmCall.context_window_used_pct =
+        llmCall.model_context_window_tokens > 0 ? llmCall.context_input_tokens / llmCall.model_context_window_tokens : 0;
+      llmCall.cache_hit_pct =
+        llmCall.context_input_tokens > 0 ? (llmCall.cache_read_tokens || 0) / llmCall.context_input_tokens : 0;
+      llmCall.fresh_pct = llmCall.context_input_tokens > 0 ? (llmCall.input_tokens || 0) / llmCall.context_input_tokens : 0;
+      llmCall.cache_write_pct =
+        llmCall.context_input_tokens > 0 ? (llmCall.cache_write_tokens || 0) / llmCall.context_input_tokens : 0;
+      tin += llmCall.input_tokens;
+      tout += llmCall.output_tokens;
+      tread += llmCall.cache_read_tokens;
+      twrite += llmCall.cache_write_tokens;
+      totalEstimatedCost += llmCall.estimated_cost_usd;
+      requests.add(
+        llmCall.human_request_index == null
+          ? llmCall.human_request_text || llmCall.llm_call_index
+          : llmCall.human_request_index
+      );
     }
-    convo.total_input_tokens = tin;
-    convo.total_output_tokens = tout;
-    convo.total_cache_read_tokens = tread;
-    convo.total_cache_write_tokens = twrite;
-    convo.total_cost_usd = tcost;
-    convo.turn_count = convo.turns.length;
-    convo.human_request_count = requests.size;
+    session.total_input_tokens = tin;
+    session.total_output_tokens = tout;
+    session.total_cache_read_tokens = tread;
+    session.total_cache_write_tokens = twrite;
+    session.total_estimated_cost_usd = totalEstimatedCost;
+    session.llm_call_count = session.llm_calls.length;
+    session.human_request_count = requests.size;
   }
 
-  _listItem(c) {
+  _listItem(session) {
     return {
-      id: c.id,
-      source: c.source,
-      project: c.project,
-      title: truncate(c.title, TITLE_MAX),
-      started_at: c.started_at,
-      last_active_at: c.last_active_at,
-      total_input_tokens: c.total_input_tokens,
-      total_output_tokens: c.total_output_tokens,
-      total_cache_read_tokens: c.total_cache_read_tokens,
-      total_cache_write_tokens: c.total_cache_write_tokens,
-      total_cost_usd: c.total_cost_usd,
-      turn_count: c.turn_count,
-      human_request_count: c.human_request_count,
+      id: session.id,
+      source: session.source,
+      project: session.project,
+      title: truncate(session.title, TITLE_MAX),
+      started_at: session.started_at,
+      last_active_at: session.last_active_at,
+      total_input_tokens: session.total_input_tokens,
+      total_output_tokens: session.total_output_tokens,
+      total_cache_read_tokens: session.total_cache_read_tokens,
+      total_cache_write_tokens: session.total_cache_write_tokens,
+      total_estimated_cost_usd: session.total_estimated_cost_usd,
+      llm_call_count: session.llm_call_count,
+      human_request_count: session.human_request_count,
     };
   }
 
-  /** All conversations, sorted by last activity descending. */
-  listConversations() {
-    return [...this.conversations.values()]
-      .map((c) => this._listItem(c))
+  /** All Sessions, sorted by last activity descending. */
+  listSessions() {
+    return [...this.sessions.values()]
+      .map((session) => this._listItem(session))
       .sort((a, b) => String(b.last_active_at).localeCompare(String(a.last_active_at)));
   }
 
-  getTurns(id) {
-    const c = this.conversations.get(id);
-    if (!c) return null;
-    return c.turns.map((t) => ({
-      turn_index: t.turn_index,
-      request_index: t.request_index,
-      human_request: t.human_request || t.prompt || '',
-      timestamp: t.timestamp,
-      model: t.model,
-      prompt: t.prompt || '',
-      input_tokens: t.input_tokens,
-      output_tokens: t.output_tokens,
-      cache_read_tokens: t.cache_read_tokens,
-      cache_write_tokens: t.cache_write_tokens,
-      context_input_tokens: t.context_input_tokens,
-      model_context_window_tokens: t.model_context_window_tokens,
-      context_window_used_pct: t.context_window_used_pct,
-      cache_hit_pct: t.cache_hit_pct,
-      fresh_pct: t.fresh_pct,
-      cache_write_pct: t.cache_write_pct,
-      cost_usd: t.cost_usd,
+  getLlmCalls(id) {
+    const session = this.sessions.get(id);
+    if (!session) return null;
+    return session.llm_calls.map((llmCall) => ({
+      llm_call_index: llmCall.llm_call_index,
+      human_request_index: llmCall.human_request_index,
+      human_request_text: llmCall.human_request_text || '',
+      timestamp: llmCall.timestamp,
+      model: llmCall.model,
+      input_tokens: llmCall.input_tokens,
+      output_tokens: llmCall.output_tokens,
+      cache_read_tokens: llmCall.cache_read_tokens,
+      cache_write_tokens: llmCall.cache_write_tokens,
+      context_input_tokens: llmCall.context_input_tokens,
+      model_context_window_tokens: llmCall.model_context_window_tokens,
+      context_window_used_pct: llmCall.context_window_used_pct,
+      cache_hit_pct: llmCall.cache_hit_pct,
+      fresh_pct: llmCall.fresh_pct,
+      cache_write_pct: llmCall.cache_write_pct,
+      estimated_cost_usd: llmCall.estimated_cost_usd,
     }));
   }
 
-  getConversationMeta(id) {
-    const c = this.conversations.get(id);
-    if (!c) return null;
+  getSessionMeta(id) {
+    const session = this.sessions.get(id);
+    if (!session) return null;
     return {
-      ...this._listItem(c),
-      session_prompt: c.title || '',
+      ...this._listItem(session),
+      session_title: session.title || '',
     };
   }
 
   /** Aggregate totals, per-source totals, 30-day daily breakdown, top 5. */
   summary() {
-    const totals = { input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0, cost_usd: 0, turn_count: 0 };
+    const totals = {
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_read_tokens: 0,
+      cache_write_tokens: 0,
+      estimated_cost_usd: 0,
+      llm_call_count: 0,
+    };
     const bySource = {
-      'claude-code': { ...emptyTotals(), conversation_count: 0 },
-      codex: { ...emptyTotals(), conversation_count: 0 },
+      'claude-code': { ...emptyTotals(), session_count: 0 },
+      codex: { ...emptyTotals(), session_count: 0 },
     };
 
     // Build the last-30-days window (local calendar days, oldest first).
@@ -181,70 +192,81 @@ class Store {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const bucket = {
         date: key,
-        'claude-code': { tokens: 0, cost_usd: 0 },
-        codex: { tokens: 0, cost_usd: 0 },
+        'claude-code': { tokens: 0, estimated_cost_usd: 0 },
+        codex: { tokens: 0, estimated_cost_usd: 0 },
       };
       days.push(bucket);
       dayIndex.set(key, bucket);
     }
 
-    for (const c of this.conversations.values()) {
-      const src = c.source;
-      if (bySource[src]) bySource[src].conversation_count += 1;
+    for (const session of this.sessions.values()) {
+      const src = session.source;
+      if (bySource[src]) bySource[src].session_count += 1;
 
-      for (const t of c.turns) {
-        const turnTokens = t.input_tokens + t.output_tokens + t.cache_read_tokens + t.cache_write_tokens;
+      for (const llmCall of session.llm_calls) {
+        const callTokens =
+          llmCall.input_tokens + llmCall.output_tokens + llmCall.cache_read_tokens + llmCall.cache_write_tokens;
 
-        totals.input_tokens += t.input_tokens;
-        totals.output_tokens += t.output_tokens;
-        totals.cache_read_tokens += t.cache_read_tokens;
-        totals.cache_write_tokens += t.cache_write_tokens;
-        totals.cost_usd += t.cost_usd;
-        totals.turn_count += 1;
+        totals.input_tokens += llmCall.input_tokens;
+        totals.output_tokens += llmCall.output_tokens;
+        totals.cache_read_tokens += llmCall.cache_read_tokens;
+        totals.cache_write_tokens += llmCall.cache_write_tokens;
+        totals.estimated_cost_usd += llmCall.estimated_cost_usd;
+        totals.llm_call_count += 1;
 
         if (bySource[src]) {
           const b = bySource[src];
-          b.input_tokens += t.input_tokens;
-          b.output_tokens += t.output_tokens;
-          b.cache_read_tokens += t.cache_read_tokens;
-          b.cache_write_tokens += t.cache_write_tokens;
-          b.cost_usd += t.cost_usd;
-          b.turn_count += 1;
+          b.input_tokens += llmCall.input_tokens;
+          b.output_tokens += llmCall.output_tokens;
+          b.cache_read_tokens += llmCall.cache_read_tokens;
+          b.cache_write_tokens += llmCall.cache_write_tokens;
+          b.estimated_cost_usd += llmCall.estimated_cost_usd;
+          b.llm_call_count += 1;
         }
 
-        const key = dayKey(t.timestamp);
+        const key = dayKey(llmCall.timestamp);
         const bucket = key && dayIndex.get(key);
         if (bucket && bucket[src]) {
-          bucket[src].tokens += turnTokens;
-          bucket[src].cost_usd += t.cost_usd;
+          bucket[src].tokens += callTokens;
+          bucket[src].estimated_cost_usd += llmCall.estimated_cost_usd;
         }
       }
     }
 
-    const top = [...this.conversations.values()]
-      .sort((a, b) => b.total_cost_usd - a.total_cost_usd)
+    const top = [...this.sessions.values()]
+      .sort((a, b) => b.total_estimated_cost_usd - a.total_estimated_cost_usd)
       .slice(0, 5)
-      .map((c) => ({
-        id: c.id,
-        source: c.source,
-        project: c.project,
-        title: truncate(c.title, TITLE_MAX),
-        total_cost_usd: c.total_cost_usd,
+      .map((session) => ({
+        id: session.id,
+        source: session.source,
+        project: session.project,
+        title: truncate(session.title, TITLE_MAX),
+        total_estimated_cost_usd: session.total_estimated_cost_usd,
         total_tokens:
-          c.total_input_tokens + c.total_output_tokens + c.total_cache_read_tokens + c.total_cache_write_tokens,
+          session.total_input_tokens +
+          session.total_output_tokens +
+          session.total_cache_read_tokens +
+          session.total_cache_write_tokens,
       }));
 
     return {
-      totals: { ...totals, conversation_count: this.conversations.size },
+      totals: { ...totals, session_count: this.sessions.size },
       by_source: bySource,
       daily: days,
-      top_conversations: top,
+      top_sessions: top,
     };
   }
 }
 
 function emptyTotals() {
-  return { input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0, cost_usd: 0, turn_count: 0 };
+  return {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_read_tokens: 0,
+    cache_write_tokens: 0,
+    estimated_cost_usd: 0,
+    llm_call_count: 0,
+  };
 }
 
 module.exports = { Store };

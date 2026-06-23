@@ -19,10 +19,10 @@ const FALLBACK_CONTEXT_WINDOWS = {
 
 const state = {
   page: 'stats',
-  conversations: [],
+  sessions: [],
   summary: null,
   selectedId: null,
-  turnsCache: null, // {id, turns, conversation}
+  llmCallsCache: null, // {id, llmCalls, session}
   activeRequestKey: null,
   filters: { search: '', source: '', project: '', from: '', to: '' },
 };
@@ -38,7 +38,7 @@ function fmtTokens(n) {
 function fmtTokensFull(n) {
   return (n || 0).toLocaleString();
 }
-function fmtCost(n) {
+function fmtEstimatedCost(n) {
   n = n || 0;
   if (n === 0) return '$0';
   if (n < 0.01) return '$' + n.toFixed(4);
@@ -98,28 +98,28 @@ function fallbackContextWindow(model) {
   return FALLBACK_CONTEXT_WINDOWS['claude-sonnet-4-5'];
 }
 
-function contextTokensForTurn(t) {
+function contextTokensForLlmCall(t) {
   return t.context_input_tokens != null
     ? t.context_input_tokens
     : (t.input_tokens || 0) + (t.cache_read_tokens || 0) + (t.cache_write_tokens || 0);
 }
 
-function contextWindowForTurn(t) {
+function contextWindowForLlmCall(t) {
   return t.model_context_window_tokens || fallbackContextWindow(t.model);
 }
 
-function contextPctForTurn(t) {
-  const contextTokens = contextTokensForTurn(t);
-  const contextWindow = contextWindowForTurn(t);
+function contextPctForLlmCall(t) {
+  const contextTokens = contextTokensForLlmCall(t);
+  const contextWindow = contextWindowForLlmCall(t);
   return contextWindow > 0 ? contextTokens / contextWindow : 0;
 }
 
-function cacheHitPctForTurn(t) {
-  const contextTokens = contextTokensForTurn(t);
+function cacheHitPctForLlmCall(t) {
+  const contextTokens = contextTokensForLlmCall(t);
   return contextTokens > 0 ? (t.cache_read_tokens || 0) / contextTokens : 0;
 }
 
-function latestContextTurn(group) {
+function latestContextLlmCall(group) {
   return group.calls[group.calls.length - 1] || null;
 }
 
@@ -159,18 +159,18 @@ async function getJSON(url) {
 
 async function refresh(initial) {
   try {
-    const [summary, conversations] = await Promise.all([
+    const [summary, sessions] = await Promise.all([
       getJSON('/api/summary'),
-      getJSON('/api/conversations'),
+      getJSON('/api/sessions'),
     ]);
     state.summary = summary;
-    state.conversations = conversations;
+    state.sessions = sessions;
     renderGlobal();
     renderChart();
     renderTop();
     populateProjectFilter();
     renderList();
-    if (state.selectedId) await loadTurns(state.selectedId, true);
+    if (state.selectedId) await loadLlmCalls(state.selectedId, true);
     pulse();
   } catch (err) {
     console.error('refresh failed', err);
@@ -190,10 +190,10 @@ function pulse() {
 function renderGlobal() {
   const t = state.summary.totals;
   const tokens = t.input_tokens + t.output_tokens + t.cache_read_tokens + t.cache_write_tokens;
-  document.getElementById('gsCost').textContent = fmtCost(t.cost_usd);
+  document.getElementById('gsEstimatedCost').textContent = fmtEstimatedCost(t.estimated_cost_usd);
   document.getElementById('gsTokens').textContent = fmtTokens(tokens);
-  document.getElementById('gsConvos').textContent = t.conversation_count;
-  document.getElementById('gsTurns').textContent = fmtTokensFull(t.turn_count);
+  document.getElementById('gsSessions').textContent = t.session_count;
+  document.getElementById('gsLlmCalls').textContent = fmtTokensFull(t.llm_call_count);
 }
 
 /* ---------- daily chart (stacked SVG bars) ---------- */
@@ -223,8 +223,8 @@ function renderChart() {
     const cc = d['claude-code'].tokens;
     const cx = d.codex.tokens;
     const tip =
-      `${d.date}\nClaude Code: ${fmtTokensFull(cc)} tok · ${fmtCost(d['claude-code'].cost_usd)}` +
-      `\nCodex: ${fmtTokensFull(cx)} tok · ${fmtCost(d.codex.cost_usd)}`;
+      `${d.date}\nClaude Code: ${fmtTokensFull(cc)} tok · ${fmtEstimatedCost(d['claude-code'].estimated_cost_usd)}` +
+      `\nCodex: ${fmtTokensFull(cx)} tok · ${fmtEstimatedCost(d.codex.estimated_cost_usd)}`;
     // codex on the bottom, claude-code stacked on top
     bars +=
       `<div class="day-col" title="${esc(tip)}">` +
@@ -248,7 +248,7 @@ function renderChart() {
 /* ---------- top 5 ---------- */
 function renderTop() {
   const ol = document.getElementById('topList');
-  const top = state.summary.top_conversations || [];
+  const top = state.summary.top_sessions || [];
   ol.replaceChildren();
   if (!top.length) {
     ol.innerHTML = '<li class="dim">No data yet.</li>';
@@ -260,8 +260,8 @@ function renderTop() {
       `<span class="top-rank">${num(i + 1)}</span>` +
       `<span class="top-main"><div class="top-title">${esc(c.title)}</div>` +
       `<div class="top-sub"><span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span> ${esc(c.project)} · ${num(fmtTokens(c.total_tokens))} tok</div></span>` +
-      `<span class="top-cost">${num(fmtCost(c.total_cost_usd))}</span>`;
-    li.onclick = () => selectConversation(c.id);
+      `<span class="top-estimated-cost">${num(fmtEstimatedCost(c.total_estimated_cost_usd))}</span>`;
+    li.onclick = () => selectSession(c.id);
     ol.appendChild(li);
   });
 }
@@ -270,7 +270,7 @@ function renderTop() {
 function populateProjectFilter() {
   const sel = document.getElementById('projectFilter');
   const cur = sel.value;
-  const projects = [...new Set(state.conversations.map((c) => c.project))].sort((a, b) =>
+  const projects = [...new Set(state.sessions.map((c) => c.project))].sort((a, b) =>
     a.localeCompare(b));
   sel.replaceChildren();
   const all = document.createElement('option');
@@ -302,13 +302,13 @@ function applyFilters(list) {
   });
 }
 
-/* ---------- conversation list ---------- */
+/* ---------- Session list ---------- */
 function renderList() {
-  const wrap = document.getElementById('convList');
-  const filtered = applyFilters(state.conversations);
-  const totalCost = filtered.reduce((s, c) => s + c.total_cost_usd, 0);
+  const wrap = document.getElementById('sessionList');
+  const filtered = applyFilters(state.sessions);
+  const totalEstimatedCost = filtered.reduce((s, c) => s + c.total_estimated_cost_usd, 0);
   document.getElementById('listMeta').innerHTML =
-    `${num(filtered.length)} session${filtered.length === 1 ? '' : 's'} · ${num(fmtCost(totalCost))}`;
+    `${num(filtered.length)} session${filtered.length === 1 ? '' : 's'} · ${num(fmtEstimatedCost(totalEstimatedCost))}`;
 
   wrap.replaceChildren();
   if (!filtered.length) {
@@ -323,65 +323,65 @@ function renderList() {
   for (const c of filtered) {
     const tokens = c.total_input_tokens + c.total_output_tokens + c.total_cache_read_tokens + c.total_cache_write_tokens;
     const row = document.createElement('div');
-    row.className = 'conv-row' + (c.id === state.selectedId ? ' selected' : '');
+    row.className = 'session-row' + (c.id === state.selectedId ? ' selected' : '');
     row.innerHTML =
       `<span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span>` +
-      `<div class="conv-main">` +
-        `<div class="conv-title">${esc(c.title)}</div>` +
-        `<div class="conv-sub"><span class="proj">${esc(c.project)}</span><span>${num(c.human_request_count || 0)} human req</span><span>${num(c.turn_count)} LLM calls</span><span>${num(fmtTokens(tokens))} tok</span></div>` +
+      `<div class="session-main">` +
+        `<div class="session-title">${esc(c.title)}</div>` +
+        `<div class="session-sub"><span class="proj">${esc(c.project)}</span><span>${num(c.human_request_count || 0)} human req</span><span>${num(c.llm_call_count)} LLM calls</span><span>${num(fmtTokens(tokens))} tok</span></div>` +
       `</div>` +
-      `<div class="conv-right">` +
-        `<div class="conv-cost">${num(fmtCost(c.total_cost_usd))}</div>` +
-        `<div class="conv-meta2">${relDay(c.last_active_at)}</div>` +
+      `<div class="session-right">` +
+        `<div class="session-estimated-cost">${num(fmtEstimatedCost(c.total_estimated_cost_usd))}</div>` +
+        `<div class="session-meta">${relDay(c.last_active_at)}</div>` +
       `</div>`;
-    row.onclick = () => selectConversation(c.id);
+    row.onclick = () => selectSession(c.id);
     wrap.appendChild(row);
   }
 }
 
 /* ---------- detail view ---------- */
-async function selectConversation(id) {
+async function selectSession(id) {
   setPage('sessions');
   state.selectedId = id;
   closeRequestDialog();
   renderList();
-  await loadTurns(id, false);
+  await loadLlmCalls(id, false);
 }
 
-async function loadTurns(id, isRefresh) {
+async function loadLlmCalls(id, isRefresh) {
   try {
-    const data = await getJSON(`/api/conversations/${encodeURIComponent(id)}/turns`);
-    state.turnsCache = { id, ...data };
+    const data = await getJSON(`/api/sessions/${encodeURIComponent(id)}/llm-calls`);
+    state.llmCallsCache = { id, session: data.session, llmCalls: data.llm_calls };
     if (state.selectedId === id) renderDetail();
   } catch (err) {
-    if (!isRefresh) console.error('loadTurns failed', err);
+    if (!isRefresh) console.error('loadLlmCalls failed', err);
   }
 }
 
-// 80th-percentile cost threshold: LLM calls at/above it are the top 20%.
-function hotThreshold(turns) {
-  const costs = turns.map((t) => t.cost_usd).filter((c) => c > 0).sort((a, b) => a - b);
+// 80th-percentile estimated-cost threshold: LLM calls at/above it are the top 20%.
+function hotEstimatedCostThreshold(llmCalls) {
+  const costs = llmCalls.map((t) => t.estimated_cost_usd).filter((c) => c > 0).sort((a, b) => a - b);
   if (costs.length < 5) return Infinity; // not enough calls to single out
   const idx = Math.ceil(costs.length * 0.8) - 1;
   return costs[Math.max(0, Math.min(idx, costs.length - 1))];
 }
 
 function humanRequestKey(t) {
-  if (t.request_index != null) return String(t.request_index);
-  const request = t.human_request || t.prompt || '';
-  return request ? `prompt:${request}` : `turn:${t.turn_index}`;
+  if (t.human_request_index != null) return String(t.human_request_index);
+  const request = t.human_request_text || '';
+  return request ? `human-request:${request}` : `llm-call:${t.llm_call_index}`;
 }
 
-function groupHumanRequests(turns) {
+function groupHumanRequests(llmCalls) {
   const groups = new Map();
-  for (const t of turns) {
+  for (const t of llmCalls) {
     const key = humanRequestKey(t);
     let g = groups.get(key);
     if (!g) {
       g = {
         key,
-        request_index: t.request_index,
-        human_request: t.human_request || t.prompt || '',
+        human_request_index: t.human_request_index,
+        human_request_text: t.human_request_text || '',
         started_at: t.timestamp,
         last_active_at: t.timestamp,
         calls: [],
@@ -389,7 +389,7 @@ function groupHumanRequests(turns) {
         output_tokens: 0,
         cache_read_tokens: 0,
         cache_write_tokens: 0,
-        cost_usd: 0,
+        estimated_cost_usd: 0,
       };
       groups.set(key, g);
     }
@@ -400,7 +400,7 @@ function groupHumanRequests(turns) {
     g.output_tokens += t.output_tokens || 0;
     g.cache_read_tokens += t.cache_read_tokens || 0;
     g.cache_write_tokens += t.cache_write_tokens || 0;
-    g.cost_usd += t.cost_usd || 0;
+    g.estimated_cost_usd += t.estimated_cost_usd || 0;
   }
   return [...groups.values()];
 }
@@ -415,7 +415,7 @@ function requestPreview(text, n) {
 }
 
 function renderDetail() {
-  const { conversation: c, turns } = state.turnsCache;
+  const { session: c, llmCalls } = state.llmCallsCache;
   document.getElementById('emptyDetail').hidden = true;
   const el = document.getElementById('detailContent');
   el.hidden = false;
@@ -425,12 +425,12 @@ function renderDetail() {
   const savedScroll = prevWrap ? prevWrap.scrollTop : 0;
 
   const tokens = c.total_input_tokens + c.total_output_tokens + c.total_cache_read_tokens + c.total_cache_write_tokens;
-  const requests = groupHumanRequests(turns);
-  state.turnsCache.humanRequests = requests;
+  const requests = groupHumanRequests(llmCalls);
+  state.llmCallsCache.humanRequests = requests;
 
   // Show newest human requests first; calls inside the dialog remain chronological.
   const sortedRequests = [...requests].reverse();
-  const sessionPrompt = c.session_prompt || (requests.find((g) => g.human_request) || {}).human_request || c.title;
+  const sessionTitle = c.session_title || (requests.find((g) => g.human_request_text) || {}).human_request_text || c.title;
 
   const totals = `
     <div class="totals-grid">
@@ -439,15 +439,15 @@ function renderDetail() {
       <div class="tstat"><div class="tstat-label">Output</div><div class="tstat-value">${num(fmtTokens(c.total_output_tokens))}</div></div>
       <div class="tstat"><div class="tstat-label">Cache read</div><div class="tstat-value">${num(fmtTokens(c.total_cache_read_tokens))}</div></div>
       <div class="tstat"><div class="tstat-label">Cache write</div><div class="tstat-value">${num(fmtTokens(c.total_cache_write_tokens))}</div></div>
-      <div class="tstat cost"><div class="tstat-label">Total cost</div><div class="tstat-value">${num(fmtCost(c.total_cost_usd))}</div></div>
+      <div class="tstat estimated-cost"><div class="tstat-label">Estimated cost</div><div class="tstat-value">${num(fmtEstimatedCost(c.total_estimated_cost_usd))}</div></div>
     </div>`;
 
   const rows = sortedRequests.map((g, i) => {
     const chronologicalIndex = requests.indexOf(g);
-    const request = g.human_request || '';
+    const request = g.human_request_text || '';
     const requestShort = requestPreview(request, 68);
-    const latestTurn = latestContextTurn(g);
-    const latestContextTokens = latestTurn ? contextTokensForTurn(latestTurn) : 0;
+    const latestLlmCall = latestContextLlmCall(g);
+    const latestContextTokens = latestLlmCall ? contextTokensForLlmCall(latestLlmCall) : 0;
     return `<tr class="request-row" data-request-key="${esc(g.key)}" tabindex="0" role="button" aria-label="Open LLM calls for human request ${requestNumber(g, chronologicalIndex)}">
       <td class="l">${requestNumber(g, chronologicalIndex)}</td>
       <td class="l ts-cell">${fmtDate(g.started_at)}</td>
@@ -458,21 +458,21 @@ function renderDetail() {
       <td>${fmtTokensFull(g.cache_read_tokens)}</td>
       <td>${fmtTokensFull(g.output_tokens)}</td>
       <td>${fmtTokensFull(g.cache_write_tokens)}</td>
-      <td class="cost">${fmtCost(g.cost_usd)}</td>
+      <td class="estimated-cost">${fmtEstimatedCost(g.estimated_cost_usd)}</td>
     </tr>`;
   }).join('');
 
   el.innerHTML = `
     <div class="detail-header">
       <h2>Session</h2>
-      <div class="session-prompt" title="${esc(sessionPrompt)}">
-        <div class="session-prompt-text">${esc(sessionPrompt)}</div>
+      <div class="session-title-card" title="${esc(sessionTitle)}">
+        <div class="session-title-text">${esc(sessionTitle)}</div>
       </div>
       <div class="detail-sub">
         <span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span>
         <span>${esc(c.project)}</span>
         <span>·</span><span>${num(c.human_request_count || requests.length)} human requests</span>
-        <span>·</span><span>${num(c.turn_count)} LLM calls</span>
+        <span>·</span><span>${num(c.llm_call_count)} LLM calls</span>
         <span>·</span><span>${num(fmtDateShort(c.started_at))} → ${num(fmtDateShort(c.last_active_at))}</span>
       </div>
     </div>
@@ -481,7 +481,7 @@ function renderDetail() {
       <table class="requests">
         <thead><tr>
           <th class="l">#</th><th class="l">Time</th><th class="l">Human request</th><th>LLM calls</th>
-          <th>Context</th><th>Fresh input</th><th>Cache R</th><th>Output</th><th>Cache W</th><th>Cost</th>
+          <th>Context</th><th>Fresh input</th><th>Cache R</th><th>Output</th><th>Cache W</th><th>Estimated cost</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -535,7 +535,7 @@ function ensureRequestDialog() {
 }
 
 function openRequestDialog(key) {
-  const groups = state.turnsCache && state.turnsCache.humanRequests;
+  const groups = state.llmCallsCache && state.llmCallsCache.humanRequests;
   const group = groups && groups.find((g) => g.key === key);
   if (!group) return;
 
@@ -544,30 +544,30 @@ function openRequestDialog(key) {
   const body = dialog.querySelector('#requestDialogBody');
   const title = dialog.querySelector('#requestDialogTitle');
   const chronologicalIndex = groups.indexOf(group);
-  const threshold = hotThreshold(group.calls);
-  const request = group.human_request || '';
+  const threshold = hotEstimatedCostThreshold(group.calls);
+  const request = group.human_request_text || '';
 
   title.innerHTML = `Request ${num(requestNumber(group, chronologicalIndex))}`;
 
   const callRows = [...group.calls].reverse().map((t) => {
-    const hot = isFinite(threshold) && t.cost_usd >= threshold && t.cost_usd > 0;
-    const contextTokens = contextTokensForTurn(t);
-    const contextWindow = contextWindowForTurn(t);
+    const hot = isFinite(threshold) && t.estimated_cost_usd >= threshold && t.estimated_cost_usd > 0;
+    const contextTokens = contextTokensForLlmCall(t);
+    const contextWindow = contextWindowForLlmCall(t);
     const contextPctTitle = contextWindow
       ? `${fmtTokensFull(contextTokens)} / ${fmtTokensFull(contextWindow)} context tokens`
       : `${fmtTokensFull(contextTokens)} context tokens`;
     return `<tr class="${hot ? 'hot' : ''}">
-      <td class="l">${t.turn_index + 1}</td>
+      <td class="l">${t.llm_call_index + 1}</td>
       <td class="l ts-cell">${fmtDate(t.timestamp)}</td>
       <td class="l model-cell">${esc(t.model)}</td>
       <td title="${fmtTokensFull(contextTokens)} context tokens">${fmtTokens(contextTokens)}</td>
-      <td title="${esc(contextPctTitle)}">${fmtPct(contextPctForTurn(t))}</td>
-      <td>${fmtPct(cacheHitPctForTurn(t))}</td>
+      <td title="${esc(contextPctTitle)}">${fmtPct(contextPctForLlmCall(t))}</td>
+      <td>${fmtPct(cacheHitPctForLlmCall(t))}</td>
       <td>${fmtTokensFull(t.input_tokens)}</td>
       <td>${fmtTokensFull(t.cache_read_tokens)}</td>
       <td>${fmtTokensFull(t.output_tokens)}</td>
       <td>${fmtTokensFull(t.cache_write_tokens)}</td>
-      <td class="cost">${fmtCost(t.cost_usd)}${hot ? '<span class="hot-flag">▲</span>' : ''}</td>
+      <td class="estimated-cost">${fmtEstimatedCost(t.estimated_cost_usd)}${hot ? '<span class="hot-flag">▲</span>' : ''}</td>
     </tr>`;
   }).join('');
 
@@ -578,14 +578,14 @@ function openRequestDialog(key) {
       <div class="tstat"><div class="tstat-label">Fresh input</div><div class="tstat-value">${num(fmtTokens(group.input_tokens))}</div></div>
       <div class="tstat"><div class="tstat-label">Cache read</div><div class="tstat-value">${num(fmtTokens(group.cache_read_tokens))}</div></div>
       <div class="tstat"><div class="tstat-label">Output</div><div class="tstat-value">${num(fmtTokens(group.output_tokens))}</div></div>
-      <div class="tstat cost"><div class="tstat-label">Total cost</div><div class="tstat-value">${num(fmtCost(group.cost_usd))}</div></div>
+      <div class="tstat estimated-cost"><div class="tstat-label">Estimated cost</div><div class="tstat-value">${num(fmtEstimatedCost(group.estimated_cost_usd))}</div></div>
     </div>
     <div class="dialog-table-wrap">
-      <table class="turns">
+      <table class="llm-calls">
         <thead><tr>
           <th class="l">LLM call #</th><th class="l">Time</th><th class="l">Model</th>
           <th>Context</th><th>Context %</th><th>Cache hit %</th>
-          <th>Fresh input</th><th>Cache R</th><th>Output</th><th>Cache W</th><th>Cost</th>
+          <th>Fresh input</th><th>Cache R</th><th>Output</th><th>Cache W</th><th>Estimated cost</th>
         </tr></thead>
         <tbody>${callRows}</tbody>
       </table>

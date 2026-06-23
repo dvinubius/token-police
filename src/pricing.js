@@ -4,9 +4,9 @@
  * Pricing: fetches live per-token rates from LiteLLM, caches them to disk for
  * 1 hour, and falls back to hardcoded rates if the fetch fails.
  *
- * Every cost is computed from four disjoint token buckets so the same math
+ * Every Estimated cost is computed from four disjoint token buckets so the same math
  * works for both providers:
- *   input        — fresh (non-cached) prompt tokens
+ *   input        — fresh input tokens
  *   output       — completion tokens (incl. reasoning tokens)
  *   cache_read   — tokens served from the prompt cache (~10x cheaper)
  *   cache_write  — tokens written to the prompt cache (~1.25x input)
@@ -134,7 +134,7 @@ class Pricing {
   }
 
   _resolve(model) {
-    // Synthetic / local turns are never billed.
+    // Synthetic / local LLM calls are never billed.
     if (!model || model === '<synthetic>' || model === 'unknown') {
       return { input: 0, output: 0, cache_read: 0, cache_write: 0 };
     }
@@ -228,8 +228,8 @@ class Pricing {
     return null;
   }
 
-  /** Compute USD cost for one turn's token buckets. */
-  cost(model, tokens) {
+  /** Compute estimated USD cost for one LLM call's token buckets. */
+  estimatedCost(model, tokens) {
     const r = this.rates(model);
     return (
       (tokens.input_tokens || 0) * r.input +

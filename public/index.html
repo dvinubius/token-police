@@ -16,18 +16,18 @@
         <button type="button" class="page-tab active" data-page-target="stats" aria-current="page">Stats</button>
         <button type="button" class="page-tab" data-page-target="sessions">Sessions</button>
       </nav>
-      <div class="global-stats" id="globalStats">
-        <div class="gstat"><span class="gstat-label">Total spend</span><span class="gstat-value" id="gsCost">—</span></div>
-        <div class="gstat"><span class="gstat-label">Total tokens</span><span class="gstat-value" id="gsTokens">—</span></div>
-        <div class="gstat"><span class="gstat-label">Sessions</span><span class="gstat-value" id="gsConvos">—</span></div>
-        <div class="gstat"><span class="gstat-label">LLM calls</span><span class="gstat-value" id="gsTurns">—</span></div>
-      </div>
       <div class="refresh" id="refreshIndicator" title="Auto-refreshes every 30s">
         <span class="dot"></span><span id="refreshText">live</span>
       </div>
     </header>
 
     <section class="page overview stats-page" id="statsPage" data-page="stats">
+      <div class="global-stats" id="globalStats">
+        <div class="gstat card"><span class="gstat-label">Estimated cost</span><span class="gstat-value estimated-cost" id="gsEstimatedCost">—</span></div>
+        <div class="gstat card"><span class="gstat-label">Total tokens</span><span class="gstat-value tokens" id="gsTokens">—</span></div>
+        <div class="gstat card"><span class="gstat-label">Sessions</span><span class="gstat-value" id="gsSessions">—</span></div>
+        <div class="gstat card"><span class="gstat-label">LLM calls</span><span class="gstat-value" id="gsLlmCalls">—</span></div>
+      </div>
       <div class="card chart-card">
         <div class="card-head">
           <h2>Daily token usage — last <span class="num">30</span> days</h2>
@@ -39,7 +39,7 @@
         <div id="chart" class="chart"></div>
       </div>
       <div class="card top-card">
-        <div class="card-head"><h2>Top <span class="num">5</span> most expensive</h2></div>
+        <div class="card-head"><h2>Top <span class="num">5</span> expensive sessions</h2></div>
         <ol id="topList" class="top-list"></ol>
       </div>
     </section>
@@ -59,7 +59,7 @@
           <button id="clearFilters" class="ghost-btn">Clear</button>
         </div>
         <div class="list-meta" id="listMeta"></div>
-        <div class="conv-list" id="convList"></div>
+        <div class="session-list" id="sessionList"></div>
       </section>
 
       <section class="detail-pane" id="detailPane">
