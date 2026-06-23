@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Token Dashboard</title>
+    <title>Token Police</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="topbar">
       <div class="brand">
         <span class="logo">◆</span>
-        <h1>Token Dashboard</h1>
+        <h1>Token Police</h1>
       </div>
       <nav class="page-nav" aria-label="Primary">
         <button type="button" class="page-tab active" data-page-target="stats" aria-current="page">Stats</button>
@@ -30,7 +30,7 @@
     <section class="page overview stats-page" id="statsPage" data-page="stats">
       <div class="card chart-card">
         <div class="card-head">
-          <h2>Daily token usage — last 30 days</h2>
+          <h2>Daily token usage — last <span class="num">30</span> days</h2>
           <div class="legend">
             <span class="legend-item"><i class="swatch cc"></i>Claude Code</span>
             <span class="legend-item"><i class="swatch codex"></i>Codex</span>
@@ -39,7 +39,7 @@
         <div id="chart" class="chart"></div>
       </div>
       <div class="card top-card">
-        <div class="card-head"><h2>Top 5 most expensive</h2></div>
+        <div class="card-head"><h2>Top <span class="num">5</span> most expensive</h2></div>
         <ol id="topList" class="top-list"></ol>
       </div>
     </section>
@@ -64,7 +64,7 @@
 
       <section class="detail-pane" id="detailPane">
         <div class="empty-detail" id="emptyDetail">
-          <p>Select a session to see its human-request token breakdown.</p>
+          <p>No session selected.</p>
         </div>
         <div class="detail-content" id="detailContent" hidden></div>
       </section>

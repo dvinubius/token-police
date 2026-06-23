@@ -14,11 +14,11 @@ const needed = ['express', 'chokidar'];
 const missing = needed.some((dep) => !existsSync(path.join(root, 'node_modules', dep)));
 
 if (missing) {
-  console.log('[token-dashboard] Dependencies missing — running `npm install`...\n');
+  console.log('[token-police] Dependencies missing — running `npm install`...\n');
   try {
     execSync('npm install', { cwd: root, stdio: 'inherit' });
   } catch (err) {
-    console.error('\n[token-dashboard] `npm install` failed. Please run it manually.');
+    console.error('\n[token-police] `npm install` failed. Please run it manually.');
     process.exit(1);
   }
   console.log('');

@@ -1,4 +1,4 @@
-# Token Dashboard
+# Token Police
 
 A self-contained **local** web dashboard for tracking token usage and cost across
 **Claude Code** and **Codex CLI** sessions. It groups each transcript into human

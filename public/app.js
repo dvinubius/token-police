@@ -1,6 +1,6 @@
 'use strict';
 
-/* Token Dashboard frontend — vanilla JS, no external libraries, no network
+/* Token Police frontend — vanilla JS, no external libraries, no network
  * calls except to this app's own local API. */
 
 const REFRESH_MS = 30000;
@@ -81,6 +81,7 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
+function num(s) { return `<span class="num">${esc(s)}</span>`; }
 
 function normalizedModel(model) {
   return String(model || '').toLowerCase().replace(/^[^/]+\//, '');
@@ -256,10 +257,10 @@ function renderTop() {
   top.forEach((c, i) => {
     const li = document.createElement('li');
     li.innerHTML =
-      `<span class="top-rank">${i + 1}</span>` +
+      `<span class="top-rank">${num(i + 1)}</span>` +
       `<span class="top-main"><div class="top-title">${esc(c.title)}</div>` +
-      `<div class="top-sub"><span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span> ${esc(c.project)} · ${fmtTokens(c.total_tokens)} tok</div></span>` +
-      `<span class="top-cost">${fmtCost(c.total_cost_usd)}</span>`;
+      `<div class="top-sub"><span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span> ${esc(c.project)} · ${num(fmtTokens(c.total_tokens))} tok</div></span>` +
+      `<span class="top-cost">${num(fmtCost(c.total_cost_usd))}</span>`;
     li.onclick = () => selectConversation(c.id);
     ol.appendChild(li);
   });
@@ -306,8 +307,8 @@ function renderList() {
   const wrap = document.getElementById('convList');
   const filtered = applyFilters(state.conversations);
   const totalCost = filtered.reduce((s, c) => s + c.total_cost_usd, 0);
-  document.getElementById('listMeta').textContent =
-    `${filtered.length} session${filtered.length === 1 ? '' : 's'} · ${fmtCost(totalCost)}`;
+  document.getElementById('listMeta').innerHTML =
+    `${num(filtered.length)} session${filtered.length === 1 ? '' : 's'} · ${num(fmtCost(totalCost))}`;
 
   wrap.replaceChildren();
   if (!filtered.length) {
@@ -327,10 +328,10 @@ function renderList() {
       `<span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span>` +
       `<div class="conv-main">` +
         `<div class="conv-title">${esc(c.title)}</div>` +
-        `<div class="conv-sub"><span class="proj">${esc(c.project)}</span><span>${c.human_request_count || 0} human req</span><span>${c.turn_count} LLM calls</span><span>${fmtTokens(tokens)} tok</span></div>` +
+        `<div class="conv-sub"><span class="proj">${esc(c.project)}</span><span>${num(c.human_request_count || 0)} human req</span><span>${num(c.turn_count)} LLM calls</span><span>${num(fmtTokens(tokens))} tok</span></div>` +
       `</div>` +
       `<div class="conv-right">` +
-        `<div class="conv-cost">${fmtCost(c.total_cost_usd)}</div>` +
+        `<div class="conv-cost">${num(fmtCost(c.total_cost_usd))}</div>` +
         `<div class="conv-meta2">${relDay(c.last_active_at)}</div>` +
       `</div>`;
     row.onclick = () => selectConversation(c.id);
@@ -429,14 +430,16 @@ function renderDetail() {
 
   // Show newest human requests first; calls inside the dialog remain chronological.
   const sortedRequests = [...requests].reverse();
+  const sessionPrompt = c.session_prompt || (requests.find((g) => g.human_request) || {}).human_request || c.title;
 
   const totals = `
     <div class="totals-grid">
-      <div class="tstat"><div class="tstat-label">Fresh input</div><div class="tstat-value">${fmtTokens(c.total_input_tokens)}</div></div>
-      <div class="tstat"><div class="tstat-label">Output</div><div class="tstat-value">${fmtTokens(c.total_output_tokens)}</div></div>
-      <div class="tstat"><div class="tstat-label">Cache read</div><div class="tstat-value">${fmtTokens(c.total_cache_read_tokens)}</div></div>
-      <div class="tstat"><div class="tstat-label">Cache write</div><div class="tstat-value">${fmtTokens(c.total_cache_write_tokens)}</div></div>
-      <div class="tstat cost"><div class="tstat-label">Total cost</div><div class="tstat-value">${fmtCost(c.total_cost_usd)}</div></div>
+      <div class="tstat total"><div class="tstat-label">Total Tokens</div><div class="tstat-value">${num(fmtTokens(tokens))}</div></div>
+      <div class="tstat"><div class="tstat-label">Fresh input</div><div class="tstat-value">${num(fmtTokens(c.total_input_tokens))}</div></div>
+      <div class="tstat"><div class="tstat-label">Output</div><div class="tstat-value">${num(fmtTokens(c.total_output_tokens))}</div></div>
+      <div class="tstat"><div class="tstat-label">Cache read</div><div class="tstat-value">${num(fmtTokens(c.total_cache_read_tokens))}</div></div>
+      <div class="tstat"><div class="tstat-label">Cache write</div><div class="tstat-value">${num(fmtTokens(c.total_cache_write_tokens))}</div></div>
+      <div class="tstat cost"><div class="tstat-label">Total cost</div><div class="tstat-value">${num(fmtCost(c.total_cost_usd))}</div></div>
     </div>`;
 
   const rows = sortedRequests.map((g, i) => {
@@ -461,14 +464,16 @@ function renderDetail() {
 
   el.innerHTML = `
     <div class="detail-header">
-      <h2>${esc(c.title)}</h2>
+      <h2>Session</h2>
+      <div class="session-prompt" title="${esc(sessionPrompt)}">
+        <div class="session-prompt-text">${esc(sessionPrompt)}</div>
+      </div>
       <div class="detail-sub">
         <span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span>
         <span>${esc(c.project)}</span>
-        <span>·</span><span>${c.human_request_count || requests.length} human requests</span>
-        <span>·</span><span>${c.turn_count} LLM calls</span>
-        <span>·</span><span>${fmtTokens(tokens)} tokens</span>
-        <span>·</span><span>${fmtDateShort(c.started_at)} → ${fmtDateShort(c.last_active_at)}</span>
+        <span>·</span><span>${num(c.human_request_count || requests.length)} human requests</span>
+        <span>·</span><span>${num(c.turn_count)} LLM calls</span>
+        <span>·</span><span>${num(fmtDateShort(c.started_at))} → ${num(fmtDateShort(c.last_active_at))}</span>
       </div>
     </div>
     ${totals}
@@ -542,7 +547,7 @@ function openRequestDialog(key) {
   const threshold = hotThreshold(group.calls);
   const request = group.human_request || '';
 
-  title.textContent = `Request ${requestNumber(group, chronologicalIndex)}`;
+  title.innerHTML = `Request ${num(requestNumber(group, chronologicalIndex))}`;
 
   const callRows = [...group.calls].reverse().map((t) => {
     const hot = isFinite(threshold) && t.cost_usd >= threshold && t.cost_usd > 0;
@@ -569,11 +574,11 @@ function openRequestDialog(key) {
   body.innerHTML = `
     <div class="request-full">${esc(request) || '<span class="dim">No human request text captured.</span>'}</div>
     <div class="dialog-stats">
-      <div class="tstat"><div class="tstat-label">LLM calls</div><div class="tstat-value">${fmtTokensFull(group.calls.length)}</div></div>
-      <div class="tstat"><div class="tstat-label">Fresh input</div><div class="tstat-value">${fmtTokens(group.input_tokens)}</div></div>
-      <div class="tstat"><div class="tstat-label">Cache read</div><div class="tstat-value">${fmtTokens(group.cache_read_tokens)}</div></div>
-      <div class="tstat"><div class="tstat-label">Output</div><div class="tstat-value">${fmtTokens(group.output_tokens)}</div></div>
-      <div class="tstat cost"><div class="tstat-label">Total cost</div><div class="tstat-value">${fmtCost(group.cost_usd)}</div></div>
+      <div class="tstat"><div class="tstat-label">LLM calls</div><div class="tstat-value">${num(fmtTokensFull(group.calls.length))}</div></div>
+      <div class="tstat"><div class="tstat-label">Fresh input</div><div class="tstat-value">${num(fmtTokens(group.input_tokens))}</div></div>
+      <div class="tstat"><div class="tstat-label">Cache read</div><div class="tstat-value">${num(fmtTokens(group.cache_read_tokens))}</div></div>
+      <div class="tstat"><div class="tstat-label">Output</div><div class="tstat-value">${num(fmtTokens(group.output_tokens))}</div></div>
+      <div class="tstat cost"><div class="tstat-label">Total cost</div><div class="tstat-value">${num(fmtCost(group.cost_usd))}</div></div>
     </div>
     <div class="dialog-table-wrap">
       <table class="turns">
@@ -585,7 +590,7 @@ function openRequestDialog(key) {
         <tbody>${callRows}</tbody>
       </table>
     </div>
-    <div class="legend-note">Rows highlighted in red are the top 20% most expensive LLM calls for this human request.</div>`;
+    <div class="legend-note">Rows highlighted in red are the top ${num('20%')} most expensive LLM calls for this human request.</div>`;
 
   dialog.hidden = false;
   document.body.classList.add('modal-open');

@@ -1,5 +1,5 @@
 {
-  "name": "token-dashboard",
+  "name": "token-police",
   "version": "1.0.0",
   "description": "Local dashboard for tracking per-prompt token usage across Claude Code and Codex CLI sessions",
   "private": true,

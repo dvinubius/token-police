@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Token Dashboard server.
+ * Token Police server.
  *
  * On startup: load pricing, parse all existing Claude Code + Codex transcripts,
  * start filesystem watchers, serve the REST API and static UI on :7899, and
@@ -82,8 +82,8 @@ async function main() {
 
   app.listen(PORT, HOST, () => {
     const url = `http://${HOST}:${PORT}`;
-    console.log(`\n[token-dashboard] Serving on ${url}`);
-    console.log('[token-dashboard] Watching:');
+    console.log(`\n[token-police] Serving on ${url}`);
+    console.log('[token-police] Watching:');
     console.log(`    ${CLAUDE_DIR}`);
     console.log(`    ${CODEX_DIR}\n`);
     openBrowser(url);
@@ -91,6 +91,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('[token-dashboard] Fatal error:', err);
+  console.error('[token-police] Fatal error:', err);
   process.exit(1);
 });

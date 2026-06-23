@@ -156,7 +156,10 @@ class Store {
   getConversationMeta(id) {
     const c = this.conversations.get(id);
     if (!c) return null;
-    return this._listItem(c);
+    return {
+      ...this._listItem(c),
+      session_prompt: c.title || '',
+    };
   }
 
   /** Aggregate totals, per-source totals, 30-day daily breakdown, top 5. */
