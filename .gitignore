@@ -4,4 +4,6 @@
 
 .cache/
 
+.not-for-agents/
+
 node_modules/
