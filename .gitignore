@@ -1,9 +1,7 @@
 .agent/
-
+.dev-notes/
 .codegraph/
 
 .cache/
-
-.not-for-agents/
 
 node_modules/
