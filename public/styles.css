@@ -486,6 +486,7 @@ input:focus, select:focus, button:focus-visible { border-color: var(--accent); b
 }
 .session-row:hover { border-color: var(--sel-border); }
 .session-row.selected { border-color: var(--sel-border); background: var(--sel-bg); }
+.list-sentinel { height: 1px; flex: 0 0 auto; }
 
 .badge {
   font-size: 10px;

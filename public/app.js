@@ -19,11 +19,14 @@ const FALLBACK_CONTEXT_WINDOWS = {
   'gpt-5.5': 400000,
 };
 
+const LIST_PAGE = 20; // session-list render window step (initial size and scroll increment)
+
 const state = {
   page: 'stats',
   theme: 'graphite',
   sessions: [],
   summary: null,
+  listLimit: LIST_PAGE, // rows currently rendered in the session list; grows on scroll
   selectedId: null,
   llmCallsCache: null, // {id, llmCalls, session}
   activeRequestKey: null,
@@ -421,6 +424,17 @@ function applyFilters(list) {
 }
 
 /* ---------- Session list ---------- */
+let listObserver = null;
+
+// Reset the render window to the first page. Use this whenever the result set
+// changes underneath the user (filter/sort), so they start at the top; plain
+// renderList() preserves the window for refreshes and selection.
+function resetListWindow() {
+  state.listLimit = LIST_PAGE;
+  renderList();
+  document.getElementById('sessionList').scrollTop = 0;
+}
+
 function renderList() {
   const wrap = document.getElementById('sessionList');
   const filtered = applyFilters(state.sessions);
@@ -428,6 +442,7 @@ function renderList() {
   document.getElementById('listMeta').innerHTML =
     `${num(filtered.length)} session${filtered.length === 1 ? '' : 's'} · ${num(fmtEstimatedCost(totalEstimatedCost))}`;
 
+  if (listObserver) listObserver.disconnect();
   wrap.replaceChildren();
   if (!filtered.length) {
     const empty = document.createElement('div');
@@ -438,7 +453,9 @@ function renderList() {
     return;
   }
 
-  for (const c of filtered) {
+  const limit = Math.min(state.listLimit, filtered.length);
+  for (let i = 0; i < limit; i++) {
+    const c = filtered[i];
     const tokens = c.total_input_tokens + c.total_output_tokens + c.total_cache_read_tokens + c.total_cache_write_tokens;
     const row = document.createElement('div');
     row.className = 'session-row' + (c.id === state.selectedId ? ' selected' : '');
@@ -454,6 +471,25 @@ function renderList() {
       `</div>`;
     row.onclick = () => selectSession(c.id);
     wrap.appendChild(row);
+  }
+
+  // Infinite scroll: a sentinel below the window grows it as it nears view.
+  if (limit < filtered.length) {
+    const sentinel = document.createElement('div');
+    sentinel.className = 'list-sentinel';
+    wrap.appendChild(sentinel);
+    if (!listObserver) {
+      listObserver = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) {
+            state.listLimit += LIST_PAGE;
+            renderList();
+          }
+        },
+        { root: wrap, rootMargin: '200px' }
+      );
+    }
+    listObserver.observe(sentinel);
   }
 }
 
@@ -847,18 +883,18 @@ function bindControls() {
   window.addEventListener('hashchange', () => setPage(pageFromHash(), false));
 
   const search = document.getElementById('searchInput');
-  search.addEventListener('input', () => { state.filters.search = search.value; renderList(); });
+  search.addEventListener('input', () => { state.filters.search = search.value; resetListWindow(); });
   document.getElementById('sourceFilter').addEventListener('change', (e) => {
-    state.filters.source = e.target.value; renderList();
+    state.filters.source = e.target.value; resetListWindow();
   });
   document.getElementById('projectFilter').addEventListener('change', (e) => {
-    state.filters.project = e.target.value; renderList();
+    state.filters.project = e.target.value; resetListWindow();
   });
   document.getElementById('fromDate').addEventListener('change', (e) => {
-    state.filters.from = e.target.value; renderList();
+    state.filters.from = e.target.value; resetListWindow();
   });
   document.getElementById('toDate').addEventListener('change', (e) => {
-    state.filters.to = e.target.value; renderList();
+    state.filters.to = e.target.value; resetListWindow();
   });
   document.getElementById('clearFilters').addEventListener('click', () => {
     state.filters = { search: '', source: '', project: '', from: '', to: '' };
@@ -867,7 +903,7 @@ function bindControls() {
     document.getElementById('projectFilter').value = '';
     document.getElementById('fromDate').value = '';
     document.getElementById('toDate').value = '';
-    renderList();
+    resetListWindow();
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && state.activeRequestKey) closeRequestDialog();
