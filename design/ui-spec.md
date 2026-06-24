@@ -101,6 +101,7 @@ Behavior:
 
 - Row activation supports pointer and keyboard.
 - Long request text is previewed in the table and shown fully in the dialog.
+- Visible token values use compact K/M/B formatting, with exact counts available in tooltips where useful.
 - Time, LLM calls, Total tokens, Fresh input, Cache read, Cache write, Output, and Estimated cost are sortable.
 - Highest-cost Human requests are emphasized in red and include a non-color marker.
 
@@ -134,6 +135,7 @@ Behavior:
 
 - Dialog opens for one Human request at a time.
 - Calls display newest first.
+- Visible token values use compact K/M/B formatting, with exact counts available in tooltips where useful.
 - Time, Fresh input, Total tokens, Cache read, Cache write, Output, and Estimated cost are sortable.
 - Calls in the top 20 percent by Estimated cost for that Human request are emphasized when there are enough calls to make the distinction meaningful.
 - Escape closes the dialog.
