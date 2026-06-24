@@ -18,6 +18,9 @@ level of project context:
 Do not recursively follow every link found in those files. After this required
 one-level read, follow only the routes relevant to the current work.
 
+❗️ Do not skip the first read, regardless of how detailed the (initial) user 
+prompt is.
+
 ## Project References
 
 - Repository map: `docs/repository-map.md`

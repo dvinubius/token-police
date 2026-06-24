@@ -209,6 +209,15 @@ function parseCodexFile(filePath) {
           if (!title) title = t;
         }
       }
+      // Turn boundary: drop any leftover activity so a new turn's input can't
+      // be swept into the previous turn's last call.
+      activeInsight = emptyInsight();
+      continue;
+    }
+
+    if (p.type === 'task_started') {
+      // Turn boundary (see user_message): reset accumulated activity.
+      activeInsight = emptyInsight();
       continue;
     }
 
@@ -256,6 +265,11 @@ function parseCodexFile(filePath) {
         cache_write_tokens: 0,
       });
       activeLlmCall = llmCalls[llmCalls.length - 1];
+      // Activity (reasoning/message/function_call/output) for a Codex response
+      // is emitted BEFORE the token_count that reports that response's usage,
+      // so the insight accumulated since the previous token_count belongs to
+      // the call this token_count creates.
+      applyInsight(activeLlmCall, activeInsight);
       activeInsight = emptyInsight();
 
       prev = {
@@ -267,7 +281,10 @@ function parseCodexFile(filePath) {
       continue;
     }
 
-    if (p.type === 'message' || p.type === 'agent_message') {
+    if (p.type === 'agent_message' || (p.type === 'message' && p.role !== 'user' && p.role !== 'developer')) {
+      // agent_message is clean assistant text; the generic `message` record
+      // duplicates it as output_text. Reject user/developer messages so injected
+      // input_text echoes don't bleed into the call as assistant text.
       const text = payloadText(p);
       if (text) activeInsight.assistantText = activeInsight.assistantText || text;
     } else if (p.type === 'function_call' || p.type === 'custom_tool_call' || p.type === 'web_search_call') {
@@ -278,13 +295,14 @@ function parseCodexFile(filePath) {
       activeInsight.toolResultChars += JSON.stringify(p.output || '').length;
       if (p.status) activeInsight.outcome = p.status;
     } else if (p.type === 'task_complete') {
-      activeInsight.outcome = 'task_complete';
+      // Outcome events arrive AFTER the response's token_count, so they apply
+      // to the most-recently-created call directly (not the next call's insight).
+      if (activeLlmCall) activeLlmCall.outcome = 'task_complete';
     } else if (p.type === 'turn_aborted') {
-      activeInsight.outcome = 'turn_aborted';
+      if (activeLlmCall) activeLlmCall.outcome = 'turn_aborted';
     } else if (p.type === 'context_compacted') {
-      activeInsight.outcome = 'context_compacted';
+      if (activeLlmCall) activeLlmCall.outcome = 'context_compacted';
     }
-    applyInsight(activeLlmCall, activeInsight);
   }
 
   const project = cwd ? path.basename(cwd) : 'codex';

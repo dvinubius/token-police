@@ -107,6 +107,16 @@ function extractToolUses(content) {
   return content.filter((b) => b && b.type === 'tool_use' && b.name);
 }
 
+// Recompute the content-derived fields of an LLM-call record from the full set
+// of content blocks accumulated for its message id (see callsById/contentById).
+function deriveContentFields(record, content) {
+  const toolUses = extractToolUses(content);
+  record.activity_summary = countByName(toolUses.map((tool) => tool.name));
+  record.tool_hint = toolUses.map(toolHint).find(Boolean) || '';
+  record.assistant_preview = extractAssistantPreview(content);
+  record.assistant_full_text = extractAssistantText(content);
+}
+
 function toolResultChars(content) {
   if (!Array.isArray(content)) return 0;
   return content
@@ -140,7 +150,14 @@ function parseClaudeFile(filePath) {
   const lines = raw.split('\n');
 
   const llmCalls = [];
-  const seen = new Set();
+  // One assistant API response = one message.id, but Claude Code streams it as
+  // several JSONL lines (often one content block per line: thinking, text, then
+  // each tool_use), all repeating the same id and the same full usage. We bill
+  // the usage once (first line) but must merge the content blocks across every
+  // line for that id, or later tool_use blocks are lost. These maps track the
+  // per-id record and its accumulated content so derived fields stay correct.
+  const callsById = new Map(); // message id -> the pushed LLM-call record
+  const contentById = new Map(); // message id -> accumulated content blocks
   let title = '';
   let cwd = '';
   let sessionId = '';
@@ -185,43 +202,47 @@ function parseClaudeFile(filePath) {
 
     if (d.type === 'assistant') {
       const msg = d.message || {};
+      const content = Array.isArray(msg.content) ? msg.content : [];
+      const llmCallKey = msg.id || d.uuid;
+
+      // Subsequent streamed line for an assistant message we have already
+      // recorded: merge this line's content blocks into the accumulated set and
+      // refresh the derived fields. The usage is identical on every line, so we
+      // do NOT touch the token buckets (it was billed once on the first line).
+      if (llmCallKey && callsById.has(llmCallKey)) {
+        const accumulated = contentById.get(llmCallKey);
+        accumulated.push(...content);
+        const record = callsById.get(llmCallKey);
+        deriveContentFields(record, accumulated);
+        if (msg.stop_reason) record.outcome = msg.stop_reason;
+        continue;
+      }
+
       const usage = msg.usage;
       if (!usage) continue;
 
-      // Claude Code writes one JSONL line per streaming chunk / content block,
-      // and every line for the same assistant message repeats the SAME message
-      // id and the SAME full usage. The usage is charged once per API response,
-      // so we de-dupe by message id (one message.id = one billable LLM call) and
-      // only count the first line we see for it.
-      const llmCallKey = msg.id || d.uuid;
-      if (llmCallKey) {
-        if (seen.has(llmCallKey)) continue;
-        seen.add(llmCallKey);
-      }
-
-      const toolUses = extractToolUses(msg.content);
-      const activitySummary = countByName(toolUses.map((tool) => tool.name));
-      const firstToolHint = toolUses.map(toolHint).find(Boolean) || '';
-      const assistantFullText = extractAssistantText(msg.content);
-
-      llmCalls.push({
+      const accumulated = [...content];
+      const record = {
         llm_call_index: llmCallIndex++,
         human_request_index: currentHumanRequestIndex >= 0 ? currentHumanRequestIndex : 0,
         human_request_text: currentHumanRequest,
         human_request_full_text: currentHumanRequestFull || currentHumanRequest,
         timestamp: ts || lastActiveAt,
         model: msg.model || 'unknown',
-        activity_summary: activitySummary,
-        assistant_preview: extractAssistantPreview(msg.content),
-        assistant_full_text: assistantFullText,
         outcome: msg.stop_reason || '',
-        tool_hint: firstToolHint,
         tool_result_chars: pendingToolResultChars,
         input_tokens: usage.input_tokens || 0,
         output_tokens: usage.output_tokens || 0,
         cache_read_tokens: usage.cache_read_input_tokens || 0,
         cache_write_tokens: usage.cache_creation_input_tokens || 0,
-      });
+      };
+      deriveContentFields(record, accumulated);
+
+      if (llmCallKey) {
+        callsById.set(llmCallKey, record);
+        contentById.set(llmCallKey, accumulated);
+      }
+      llmCalls.push(record);
       pendingToolResultChars = 0;
     }
   }

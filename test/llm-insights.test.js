@@ -64,14 +64,84 @@ test('Claude parser captures full Human request text and LLM-call insights', () 
   assert.equal(call.tool_hint, 'Read: parseClaude.js');
 });
 
-test('Codex parser attaches nearby activity to emitted LLM calls', () => {
+test('Claude parser merges tool_use blocks streamed across split lines of one message', () => {
+  // Newer Claude Code writes one JSONL line per content block, all sharing the
+  // same message id and repeating the same full usage. The tool_use blocks land
+  // on later lines than the leading thinking/text, so the parser must merge
+  // content across every line for the id (and bill the usage only once).
+  const usage = {
+    input_tokens: 2,
+    output_tokens: 62,
+    cache_read_input_tokens: 47731,
+    cache_creation_input_tokens: 292,
+  };
+  const line = (content) => ({
+    type: 'assistant',
+    timestamp: '2026-06-24T10:00:01.000Z',
+    sessionId: 'claude-session',
+    cwd: '/tmp/token-police',
+    uuid: 'assistant-stream',
+    message: {
+      id: 'msg-stream',
+      model: 'claude-opus-4-8',
+      stop_reason: 'tool_use',
+      content,
+      usage,
+    },
+  });
+
+  const file = writeJsonl('claude-split.jsonl', [
+    { type: 'user', timestamp: '2026-06-24T10:00:00.000Z', sessionId: 'claude-session', cwd: '/tmp/token-police', message: { content: [{ type: 'text', text: 'Align the Top 5 list.' }] } },
+    line([{ type: 'thinking', thinking: 'Let me check the layout.' }]),
+    line([{ type: 'text', text: 'Inspecting the rendered list.' }]),
+    line([{ type: 'tool_use', name: 'mcp__Claude_Preview__preview_inspect', input: { selector: 'li' } }]),
+    line([{ type: 'tool_use', name: 'mcp__Claude_Preview__preview_inspect', input: { selector: 'span' } }]),
+  ]);
+
+  const session = parseClaudeFile(file);
+
+  // Four assistant lines, one message id -> exactly one billable LLM call.
+  assert.equal(session.llm_calls.length, 1);
+  const call = session.llm_calls[0];
+
+  // Tool activity from the later lines is surfaced, not dropped.
+  assert.equal(call.activity_summary, 'mcp__Claude_Preview__preview_inspect x2');
+  assert.equal(call.tool_hint, 'mcp__Claude_Preview__preview_inspect');
+  assert.equal(call.assistant_preview, 'Inspecting the rendered list.');
+  assert.equal(call.outcome, 'tool_use');
+
+  // Usage is billed once despite repeating on every line.
+  assert.equal(call.input_tokens, 2);
+  assert.equal(call.output_tokens, 62);
+  assert.equal(call.cache_read_tokens, 47731);
+  assert.equal(call.cache_write_tokens, 292);
+});
+
+test('Codex parser attributes each response\'s activity to the call its token_count creates', () => {
+  // Real Codex ordering: a response emits reasoning/agent_message/function_call/
+  // function_call_output FIRST, then the token_count reporting that response's
+  // usage. So the activity accumulated since the previous token_count belongs to
+  // the call this token_count creates. Two responses prove the per-call ownership
+  // (no off-by-one), that the first response's activity is not dropped, and that
+  // a trailing task_complete lands on the last call. An injected user message
+  // between responses must not bleed into a call as assistant text.
   const file = writeJsonl('codex.jsonl', [
     { type: 'session_meta', timestamp: '2026-06-24T10:00:00.000Z', payload: { id: 'codex-session', cwd: '/tmp/token-police' } },
     { type: 'event_msg', timestamp: '2026-06-24T10:00:01.000Z', payload: { type: 'user_message', message: 'Update the LLM-call dialog.' } },
     { type: 'turn_context', timestamp: '2026-06-24T10:00:02.000Z', payload: { model: 'gpt-5-codex' } },
+
+    // Response 1: activity, then its token_count.
+    { type: 'response_item', timestamp: '2026-06-24T10:00:03.000Z', payload: { type: 'reasoning' } },
+    { type: 'event_msg', timestamp: '2026-06-24T10:00:04.000Z', payload: { type: 'agent_message', message: 'I found the dialog path.' } },
+    {
+      type: 'response_item',
+      timestamp: '2026-06-24T10:00:05.000Z',
+      payload: { type: 'function_call', name: 'shell_command', arguments: JSON.stringify({ cmd: 'npm test -- --runInBand' }) },
+    },
+    { type: 'response_item', timestamp: '2026-06-24T10:00:06.000Z', payload: { type: 'function_call_output', output: 'tests passed', status: 'completed' } },
     {
       type: 'event_msg',
-      timestamp: '2026-06-24T10:00:03.000Z',
+      timestamp: '2026-06-24T10:00:07.000Z',
       payload: {
         type: 'token_count',
         info: {
@@ -80,29 +150,62 @@ test('Codex parser attaches nearby activity to emitted LLM calls', () => {
         },
       },
     },
-    { type: 'event_msg', timestamp: '2026-06-24T10:00:04.000Z', payload: { type: 'agent_message', message: 'I found the dialog path.' } },
+
+    // Injected user input echoed as a `message` record: must be filtered out so it
+    // does not become the next call's assistant text.
     {
       type: 'response_item',
-      timestamp: '2026-06-24T10:00:05.000Z',
-      payload: { type: 'function_call', name: 'shell_command', arguments: JSON.stringify({ cmd: 'npm test -- --runInBand' }) },
+      timestamp: '2026-06-24T10:00:08.000Z',
+      payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: '<permissions instructions> Filesystem sandboxing defines which files...' }] },
     },
+
+    // Response 2: activity, then its token_count, then the turn's task_complete.
+    { type: 'event_msg', timestamp: '2026-06-24T10:00:09.000Z', payload: { type: 'agent_message', message: 'Tests passed; applying the renderer patch.' } },
     {
       type: 'response_item',
-      timestamp: '2026-06-24T10:00:06.000Z',
-      payload: { type: 'function_call_output', output: 'tests passed', status: 'completed' },
+      timestamp: '2026-06-24T10:00:10.000Z',
+      payload: { type: 'function_call', name: 'apply_patch', arguments: JSON.stringify({ file_path: '/repo/public/app.js' }) },
     },
+    { type: 'response_item', timestamp: '2026-06-24T10:00:11.000Z', payload: { type: 'function_call_output', output: 'patched', status: 'completed' } },
+    {
+      type: 'event_msg',
+      timestamp: '2026-06-24T10:00:12.000Z',
+      payload: {
+        type: 'token_count',
+        info: {
+          total_token_usage: { input_tokens: 210, cached_input_tokens: 40, output_tokens: 25, total_tokens: 230 },
+          last_token_usage: { input_tokens: 110, cached_input_tokens: 20, output_tokens: 15, reasoning_output_tokens: 6, total_tokens: 120 },
+        },
+      },
+    },
+    { type: 'event_msg', timestamp: '2026-06-24T10:00:13.000Z', payload: { type: 'task_complete' } },
   ]);
 
   const session = parseCodexFile(file);
-  const call = session.llm_calls[0];
+  assert.equal(session.llm_calls.length, 2);
+  const [call0, call1] = session.llm_calls;
 
-  assert.equal(call.human_request_full_text, 'Update the LLM-call dialog.');
-  assert.equal(call.activity_summary, 'shell_command');
-  assert.equal(call.assistant_preview, 'I found the dialog path.');
-  assert.equal(call.assistant_full_text, 'I found the dialog path.');
-  assert.equal(call.outcome, 'completed');
-  assert.equal(call.tool_hint, 'shell_command: npm');
-  assert.equal(call.reasoning_output_tokens, 4);
+  // Response 1's activity stays on call 0 (not dropped, not shifted to call 1).
+  assert.equal(call0.human_request_full_text, 'Update the LLM-call dialog.');
+  assert.equal(call0.activity_summary, 'shell_command');
+  assert.equal(call0.assistant_preview, 'I found the dialog path.');
+  assert.equal(call0.assistant_full_text, 'I found the dialog path.');
+  assert.equal(call0.outcome, 'completed');
+  assert.equal(call0.tool_hint, 'shell_command: npm');
+  assert.equal(call0.reasoning_output_tokens, 4);
+  assert.equal(call0.output_tokens, 10);
+
+  // Response 2's activity is owned by call 1, and the trailing task_complete lands here.
+  assert.equal(call1.activity_summary, 'apply_patch');
+  assert.equal(call1.assistant_full_text, 'Tests passed; applying the renderer patch.');
+  assert.equal(call1.tool_hint, 'apply_patch: app.js');
+  assert.equal(call1.outcome, 'task_complete');
+  assert.equal(call1.output_tokens, 15);
+  assert.equal(call1.reasoning_output_tokens, 6);
+
+  // The injected user input never surfaces as assistant text on any call.
+  assert.ok(!call0.assistant_full_text.includes('permissions instructions'));
+  assert.ok(!call1.assistant_full_text.includes('permissions instructions'));
 });
 
 test('Store projects insight fields and derives cost drivers', () => {
