@@ -4,6 +4,8 @@
  * calls except to this app's own local API. */
 
 const REFRESH_MS = 30000;
+const THEME_STORAGE_KEY = 'token-police-theme';
+const THEMES = new Set(['graphite', 'light']);
 
 const FALLBACK_CONTEXT_WINDOWS = {
   'claude-sonnet-4-5': 200000,
@@ -19,6 +21,7 @@ const FALLBACK_CONTEXT_WINDOWS = {
 
 const state = {
   page: 'stats',
+  theme: 'graphite',
   sessions: [],
   summary: null,
   selectedId: null,
@@ -26,6 +29,42 @@ const state = {
   activeRequestKey: null,
   filters: { search: '', source: '', project: '', from: '', to: '' },
 };
+
+/* ---------- theme switching ---------- */
+function validTheme(theme) {
+  return THEMES.has(theme) ? theme : 'graphite';
+}
+
+function storedTheme() {
+  try {
+    return validTheme(localStorage.getItem(THEME_STORAGE_KEY));
+  } catch (_) {
+    return 'graphite';
+  }
+}
+
+function applyTheme(theme, persist = true) {
+  state.theme = validTheme(theme);
+  document.documentElement.dataset.theme = state.theme;
+
+  const toggle = document.getElementById('themeToggle');
+  if (toggle) {
+    const nextTheme = state.theme === 'graphite' ? 'light' : 'graphite';
+    const label = nextTheme === 'light' ? 'Switch to light theme' : 'Switch to dark theme';
+    toggle.dataset.nextTheme = nextTheme;
+    toggle.setAttribute('aria-label', label);
+    toggle.title = label;
+  }
+
+  if (!persist) return;
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, state.theme);
+  } catch (_) {}
+}
+
+function initTheme() {
+  applyTheme(storedTheme(), false);
+}
 
 /* ---------- formatting helpers ---------- */
 function fmtTokens(n) {
@@ -607,6 +646,13 @@ function closeRequestDialog() {
 
 /* ---------- wire up filter controls ---------- */
 function bindControls() {
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      applyTheme(themeToggle.dataset.nextTheme || (state.theme === 'graphite' ? 'light' : 'graphite'));
+    });
+  }
+
   document.querySelectorAll('.page-tab').forEach((tab) => {
     tab.addEventListener('click', () => setPage(tab.dataset.pageTarget));
   });
@@ -641,6 +687,7 @@ function bindControls() {
 }
 
 /* ---------- boot ---------- */
+initTheme();
 setPage(pageFromHash(), false);
 bindControls();
 refresh(true);

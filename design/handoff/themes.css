@@ -15,6 +15,9 @@
  * Saira Condensed (700/800) is the BRAND wordmark face only — see visual-system.md §Brand.
  *
  * Switch themes with: document.documentElement.dataset.theme = 'graphite' | 'light'
+ * UI control: one icon-only top-bar toggle. Display the current-mode icon
+ * (moon for Graphite, sun for Clean light) and expose the next-mode action
+ * through aria-label/title.
  * ========================================================================== */
 
 /* ---------- Graphite (dark, near-monochrome) ---------- */

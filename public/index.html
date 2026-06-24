@@ -4,9 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Token Police - Agentic Surveillance</title>
+    <script>
+      (() => {
+        try {
+          const theme = localStorage.getItem('token-police-theme');
+          if (theme === 'graphite' || theme === 'light') {
+            document.documentElement.dataset.theme = theme;
+          }
+        } catch (_) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Saira+Condensed:wght@600;700;800&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Saira+Condensed:wght@600;700;800&display=swap" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -29,8 +39,26 @@
         <button type="button" class="page-tab active" data-page-target="stats" aria-current="page">Stats</button>
         <button type="button" class="page-tab" data-page-target="sessions">Sessions</button>
       </nav>
-      <div class="refresh" id="refreshIndicator" title="Auto-refreshes every 30s">
-        <span class="dot"></span><span id="refreshText">live</span>
+      <div class="topbar-actions">
+        <button type="button" class="theme-toggle" id="themeToggle" aria-label="Switch to light theme" title="Switch to light theme">
+          <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2"></path>
+            <path d="M12 20v2"></path>
+            <path d="m4.93 4.93 1.41 1.41"></path>
+            <path d="m17.66 17.66 1.41 1.41"></path>
+            <path d="M2 12h2"></path>
+            <path d="M20 12h2"></path>
+            <path d="m6.34 17.66-1.41 1.41"></path>
+            <path d="m19.07 4.93-1.41 1.41"></path>
+          </svg>
+          <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+          </svg>
+        </button>
+        <div class="refresh" id="refreshIndicator" title="Auto-refreshes every 30s">
+          <span class="dot"></span><span id="refreshText">live</span>
+        </div>
       </div>
     </header>
 

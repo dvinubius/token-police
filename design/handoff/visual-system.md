@@ -28,7 +28,7 @@ Replaces the old `◆` unicode mark and plain "Token Police" heading.
   silhouette. The outer shell uses `brand.logo` (`--brand-logo`, currently the blue
   token color in Graphite). The inset shield stroke, small top crest, and centered
   monospace **`$`** glyph use `surface.panel`; the glyph is 700 / 14px at `x=16`,
-  `y=21.5` in the `0 0 32 36` viewBox. Fully theme-aware — the shell and cut-in
+  `y=20` in the `0 0 32 36` viewBox. Fully theme-aware — the shell and cut-in
   details re-tone from design tokens. (Static SVG fallback is in `tokens.json` →
   `brand.logo.svgFallback`.)
 - **Wordmark:** "Token Police" in **Saira Condensed 800**, uppercase, `letter-spacing: 0.05em`,
@@ -126,6 +126,11 @@ replace with the derivation above (or precompute the four values per theme from 
 `:root[data-theme="light"]`. Set `document.documentElement.dataset.theme` to switch; persist
 the choice in `localStorage` if a user toggle is desired. Default to whichever you prefer —
 the prototype defaults to dark (Graphite-style) chrome.
+
+The production app uses one icon-only toggle in the top bar, not two text buttons. The visible
+icon represents the current mode: a moon for Graphite and a sun for Clean light. Use library-style
+outline icons sized around 18px inside a 32-34px square control, with an accessible label that
+names the action, such as "Switch to light theme" or "Switch to dark theme".
 
 ---
 
