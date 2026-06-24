@@ -17,7 +17,7 @@
 | Daily usage chart | Shows 30-day source-split token usage. | `#chart`, `renderChart()` |
 | Source legend | Identifies chart source segments. | `.legend` |
 | Top Sessions list | Shows five Sessions ordered by Estimated cost. | `#topList`, `renderTop()` |
-| Top Session item | Navigates to selected Session detail. | `renderTop()` |
+| Top Session item | Navigates to selected Session detail and switches between one-row and two-row summary layouts at the 800px breakpoint. | `renderTop()`, `.top-list li` |
 
 ## Sessions Components
 

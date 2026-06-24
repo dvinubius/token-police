@@ -31,6 +31,8 @@ Behavior:
 - Metrics use local API Summary totals.
 - Daily chart stacks source usage by day.
 - Top Sessions are ordered by Estimated cost.
+- At widths of 800px and above, each Top Session item uses one row ordered as source badge, Session title, project and token usage, then Estimated cost.
+- Below 800px, each Top Session item keeps the compact two-row layout: Session title on the first row, then source badge, project, and token usage on the second row with visible spacing between the badge and project name.
 - Selecting a top Session switches to Sessions and selects that Session.
 - If there are no top Sessions, show a no-data state.
 
