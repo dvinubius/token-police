@@ -90,14 +90,17 @@ Required columns:
 - Context.
 - Fresh input.
 - Cache read.
-- Output.
 - Cache write.
+- Output.
+- Total tokens.
 - Estimated cost.
 
 Behavior:
 
 - Row activation supports pointer and keyboard.
 - Long request text is previewed in the table and shown fully in the dialog.
+- Time, LLM calls, Total tokens, Fresh input, Cache read, Cache write, Output, and Estimated cost are sortable.
+- Highest-cost Human requests are emphasized in red and include a non-color marker.
 
 ## LLM Call Dialog
 
@@ -120,15 +123,16 @@ Required LLM call columns:
 - Cache hit percentage.
 - Fresh input.
 - Cache read.
-- Output.
 - Cache write.
+- Output.
+- Total tokens.
 - Estimated cost.
 
 Behavior:
 
 - Dialog opens for one Human request at a time.
 - Calls display newest first.
+- Time, Fresh input, Total tokens, Cache read, Cache write, Output, and Estimated cost are sortable.
 - Calls in the top 20 percent by Estimated cost for that Human request are emphasized when there are enough calls to make the distinction meaningful.
 - Escape closes the dialog.
 - Backdrop click closes the dialog.
-

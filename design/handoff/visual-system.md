@@ -134,9 +134,19 @@ names the action, such as "Switch to light theme" or "Switch to dark theme".
 
 ---
 
-## 5. Preserved semantic signals (must remain legible in both themes)
+## 5. Table behavior and preserved semantic signals
+
+Session detail tables now include sortable analytical headers. The Human request
+table sorts by Time, LLM calls, Fresh input, Cache R, Cache W, Output, Total tokens,
+and Estimated cost. The LLM call table sorts by Time, Fresh input, Cache R, Cache W,
+Output, Total tokens, and Estimated cost.
+
+Both tables use `--hot` / `--hot-bg` for high-cost row emphasis: highest-cost Human
+requests in the Session breakdown and top-cost LLM calls in the request dialog. Keep
+the visible non-color marker alongside the red Estimated cost value.
 
 App identity & primary nav · active page · live/refreshing/offline status · Claude Code vs
 Codex source · selected session · empty vs loaded detail · filtered list state · cost as a key
-metric · tokens as a key metric · high-cost LLM calls (hot rows) · keyboard focus · modal active
+metric · tokens as a key metric · high-cost Human requests and LLM calls (hot rows) · sortable
+table state · keyboard focus · modal active
 state. All map to the token roles above; none should collapse onto a shared hue.

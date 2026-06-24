@@ -41,8 +41,9 @@
 | Detail pane | Displays selected Session inspection. | `#detailPane`, `renderDetail()` |
 | Session title block | Shows full selected Session title. | `.session-title-card` |
 | Total stat | Displays one selected-Session aggregate. | `.tstat` |
-| Human request table | Lists Human requests and token/cost summaries. | `.requests`, `groupHumanRequests()` |
+| Human request table | Lists Human requests with sortable time, call count, token, and Estimated cost summaries. | `.requests`, `groupHumanRequests()`, `sortedRows()` |
 | Human request row | Opens the LLM Call Dialog. | `.request-row` |
+| Sortable table header | Toggles table sort direction for supported analytical columns. | `.sort-btn`, `sortHeader()`, `setTableSort()` |
 
 ## Dialog Components
 
@@ -53,6 +54,5 @@
 | Dialog close control | Closes the dialog. | `#requestDialogClose` |
 | Full request text | Shows untruncated Human request text. | `.request-full` |
 | Dialog stat | Displays one Human request aggregate. | `.dialog-stats .tstat` |
-| LLM call table | Lists individual LLM calls. | `.llm-calls` |
-| High-cost marker | Marks top-cost calls within a request. | `hotEstimatedCostThreshold()` |
-
+| LLM call table | Lists individual LLM calls with sortable time, token, and Estimated cost columns. | `.llm-calls` |
+| High-cost marker | Marks highest-cost Human requests and top-cost LLM calls within a request. | `.hot`, `.hot-flag`, `hotEstimatedCostThreshold()` |

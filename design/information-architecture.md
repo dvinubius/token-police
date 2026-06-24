@@ -38,6 +38,7 @@ Primary regions:
 - List metadata.
 - Session detail pane.
 - Human request table.
+- Sortable Human request table headers for time, LLM calls, token buckets, Total tokens, and Estimated cost.
 
 Primary actions:
 
@@ -59,7 +60,8 @@ Primary regions:
 - Full Human request text.
 - Request-level totals.
 - LLM calls table.
-- Note explaining high-cost call emphasis.
+- Sortable LLM call table headers for time, token buckets, Total tokens, and Estimated cost.
+- Note explaining high-cost row emphasis.
 
 Primary actions:
 
@@ -79,12 +81,13 @@ Session
   Totals
   Human requests
     Aggregated token buckets
+    Aggregated Total tokens
     Aggregated Estimated cost
     LLM calls
       Model
       Timestamp
       Token buckets
+      Total tokens
       Context metrics
       Estimated cost
 ```
-

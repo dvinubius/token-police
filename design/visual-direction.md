@@ -28,7 +28,8 @@ The visual direction should still make these distinctions clear:
 - Filtered list state.
 - Estimated cost as a key metric.
 - Total tokens as a key metric.
-- High-cost LLM calls inside a Human request.
+- High-cost Human requests inside a Session and high-cost LLM calls inside a Human request.
+- Sortable analytical table headers and visible sort state.
 - Keyboard focus.
 - Modal/dialog active state.
 
@@ -45,4 +46,3 @@ The app is desktop-only. Visual exploration should assume enough horizontal spac
 ## Output Expectation
 
 Any design exploration should keep the screen inventory, component inventory, and flows in this package intact unless a product decision explicitly changes them.
-

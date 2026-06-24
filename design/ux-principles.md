@@ -28,9 +28,8 @@ Use the canonical product terms consistently:
 
 ## Make Expensive Usage Legible
 
-High-cost Sessions and high-cost LLM calls need stronger emphasis than ordinary rows, but the exact visual treatment is open for exploration.
+High-cost Sessions, Human requests, and LLM calls need stronger emphasis than ordinary rows, but the exact visual treatment is open for exploration.
 
 ## Prefer Useful Density
 
 This is an operational dashboard, not a marketing surface. Prioritize comparison, filtering, tabular readability, compact summaries, and quick scanning over decorative explanation.
-

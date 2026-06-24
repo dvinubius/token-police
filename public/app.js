@@ -28,6 +28,10 @@ const state = {
   llmCallsCache: null, // {id, llmCalls, session}
   activeRequestKey: null,
   filters: { search: '', source: '', project: '', from: '', to: '' },
+  tableSorts: {
+    humanRequests: { key: 'time', dir: 'desc' },
+    llmCalls: { key: 'time', dir: 'desc' },
+  },
 };
 
 /* ---------- theme switching ---------- */
@@ -121,6 +125,9 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 function num(s) { return `<span class="num">${esc(s)}</span>`; }
+function tokenCell(n) {
+  return `<td title="${fmtTokensFull(n)} tokens">${fmtTokens(n)}</td>`;
+}
 
 function normalizedModel(model) {
   return String(model || '').toLowerCase().replace(/^[^/]+\//, '');
@@ -160,6 +167,67 @@ function cacheHitPctForLlmCall(t) {
 
 function latestContextLlmCall(group) {
   return group.calls[group.calls.length - 1] || null;
+}
+
+function totalTokensForGroup(group) {
+  return (group.input_tokens || 0) + (group.output_tokens || 0) +
+    (group.cache_read_tokens || 0) + (group.cache_write_tokens || 0);
+}
+
+function totalTokensForLlmCall(t) {
+  return (t.input_tokens || 0) + (t.output_tokens || 0) +
+    (t.cache_read_tokens || 0) + (t.cache_write_tokens || 0);
+}
+
+function timestampValue(ts) {
+  const time = Date.parse(ts || '');
+  return Number.isFinite(time) ? time : 0;
+}
+
+function sortHeader(table, key, label, alignClass = '') {
+  const sort = state.tableSorts[table];
+  const active = sort && sort.key === key;
+  const dir = active ? sort.dir : '';
+  const ariaSort = active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none';
+  const indicator = active ? (dir === 'asc' ? '▲' : '▼') : '';
+  const className = `${alignClass} sortable`.trim();
+  return `<th class="${className}" aria-sort="${ariaSort}">` +
+    `<button type="button" class="sort-btn" data-sort-table="${esc(table)}" data-sort-key="${esc(key)}" aria-label="Sort by ${esc(label)}">` +
+      `<span>${esc(label)}</span><span class="sort-indicator" aria-hidden="true">${indicator}</span>` +
+    `</button>` +
+  `</th>`;
+}
+
+function sortedRows(rows, table, valueByKey) {
+  const sort = state.tableSorts[table] || { key: 'time', dir: 'desc' };
+  const dir = sort.dir === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const av = valueByKey(a, sort.key);
+    const bv = valueByKey(b, sort.key);
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+}
+
+function setTableSort(table, key) {
+  const cur = state.tableSorts[table] || { key: 'time', dir: 'desc' };
+  const dir = cur.key === key && cur.dir === 'desc' ? 'asc' : 'desc';
+  state.tableSorts[table] = { key, dir };
+  if (table === 'humanRequests') renderDetail();
+  if (table === 'llmCalls' && state.activeRequestKey) openRequestDialog(state.activeRequestKey);
+}
+
+function bindSortButtons(root) {
+  root.querySelectorAll('.sort-btn').forEach((button) => {
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setTableSort(button.dataset.sortTable, button.dataset.sortKey);
+    });
+  });
 }
 
 /* ---------- page navigation ---------- */
@@ -397,10 +465,10 @@ async function loadLlmCalls(id, isRefresh) {
   }
 }
 
-// 80th-percentile estimated-cost threshold: LLM calls at/above it are the top 20%.
-function hotEstimatedCostThreshold(llmCalls) {
-  const costs = llmCalls.map((t) => t.estimated_cost_usd).filter((c) => c > 0).sort((a, b) => a - b);
-  if (costs.length < 5) return Infinity; // not enough calls to single out
+// 80th-percentile estimated-cost threshold: rows at/above it are the top 20%.
+function hotEstimatedCostThreshold(items, minItems = 1) {
+  const costs = items.map((item) => item.estimated_cost_usd).filter((c) => c > 0).sort((a, b) => a - b);
+  if (costs.length < minItems) return Infinity;
   const idx = Math.ceil(costs.length * 0.8) - 1;
   return costs[Math.max(0, Math.min(idx, costs.length - 1))];
 }
@@ -467,8 +535,19 @@ function renderDetail() {
   const requests = groupHumanRequests(llmCalls);
   state.llmCallsCache.humanRequests = requests;
 
-  // Show newest human requests first; calls inside the dialog remain chronological.
-  const sortedRequests = [...requests].reverse();
+  const sortedRequests = sortedRows(requests, 'humanRequests', (g, key) => {
+    switch (key) {
+      case 'time': return timestampValue(g.started_at);
+      case 'llmCalls': return g.calls.length;
+      case 'totalTokens': return totalTokensForGroup(g);
+      case 'inputTokens': return g.input_tokens || 0;
+      case 'cacheReadTokens': return g.cache_read_tokens || 0;
+      case 'cacheWriteTokens': return g.cache_write_tokens || 0;
+      case 'outputTokens': return g.output_tokens || 0;
+      case 'estimatedCost': return g.estimated_cost_usd || 0;
+      default: return timestampValue(g.started_at);
+    }
+  });
   const sessionTitle = c.session_title || (requests.find((g) => g.human_request_text) || {}).human_request_text || c.title;
 
   const totals = `
@@ -481,23 +560,27 @@ function renderDetail() {
       <div class="tstat estimated-cost"><div class="tstat-label">Estimated cost</div><div class="tstat-value">${num(fmtEstimatedCost(c.total_estimated_cost_usd))}</div></div>
     </div>`;
 
-  const rows = sortedRequests.map((g, i) => {
+  const requestHotThreshold = hotEstimatedCostThreshold(requests, 1);
+  const rows = sortedRequests.map((g) => {
     const chronologicalIndex = requests.indexOf(g);
     const request = g.human_request_text || '';
     const requestShort = requestPreview(request, 68);
     const latestLlmCall = latestContextLlmCall(g);
     const latestContextTokens = latestLlmCall ? contextTokensForLlmCall(latestLlmCall) : 0;
-    return `<tr class="request-row" data-request-key="${esc(g.key)}" tabindex="0" role="button" aria-label="Open LLM calls for human request ${requestNumber(g, chronologicalIndex)}">
+    const totalTokens = totalTokensForGroup(g);
+    const hot = isFinite(requestHotThreshold) && g.estimated_cost_usd >= requestHotThreshold && g.estimated_cost_usd > 0;
+    return `<tr class="request-row ${hot ? 'hot' : ''}" data-request-key="${esc(g.key)}" tabindex="0" role="button" aria-label="Open LLM calls for human request ${requestNumber(g, chronologicalIndex)}">
       <td class="l">${requestNumber(g, chronologicalIndex)}</td>
       <td class="l ts-cell">${fmtDate(g.started_at)}</td>
       <td class="l request-cell" title="${esc(request)}">${esc(requestShort) || '<span class="dim">—</span>'}</td>
       <td>${fmtTokensFull(g.calls.length)}</td>
       <td title="${fmtTokensFull(latestContextTokens)} context tokens">${fmtTokens(latestContextTokens)}</td>
-      <td>${fmtTokensFull(g.input_tokens)}</td>
-      <td>${fmtTokensFull(g.cache_read_tokens)}</td>
-      <td>${fmtTokensFull(g.output_tokens)}</td>
-      <td>${fmtTokensFull(g.cache_write_tokens)}</td>
-      <td class="estimated-cost">${fmtEstimatedCost(g.estimated_cost_usd)}</td>
+      ${tokenCell(g.input_tokens)}
+      ${tokenCell(g.cache_read_tokens)}
+      ${tokenCell(g.cache_write_tokens)}
+      ${tokenCell(g.output_tokens)}
+      ${tokenCell(totalTokens)}
+      <td class="estimated-cost">${fmtEstimatedCost(g.estimated_cost_usd)}${hot ? '<span class="hot-flag">▲</span>' : ''}</td>
     </tr>`;
   }).join('');
 
@@ -519,13 +602,15 @@ function renderDetail() {
     <div class="requests-wrap">
       <table class="requests">
         <thead><tr>
-          <th class="l">#</th><th class="l">Time</th><th class="l">Human request</th><th>LLM calls</th>
-          <th>Context</th><th>Fresh input</th><th>Cache R</th><th>Output</th><th>Cache W</th><th>Estimated cost</th>
+          <th class="l">#</th>${sortHeader('humanRequests', 'time', 'Time', 'l')}<th class="l">Human request</th>${sortHeader('humanRequests', 'llmCalls', 'LLM calls')}
+          <th>Context</th>${sortHeader('humanRequests', 'inputTokens', 'Fresh input')}${sortHeader('humanRequests', 'cacheReadTokens', 'Cache R')}${sortHeader('humanRequests', 'cacheWriteTokens', 'Cache W')}${sortHeader('humanRequests', 'outputTokens', 'Output')}${sortHeader('humanRequests', 'totalTokens', 'Total tokens')}${sortHeader('humanRequests', 'estimatedCost', 'Estimated cost')}
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div class="legend-note">Click a human request to inspect the individual LLM calls that it triggered.</div>`;
+    <div class="legend-note">Click a human request to inspect the individual LLM calls that it triggered. Rows highlighted in red are the highest-cost human requests.</div>`;
+
+  bindSortButtons(el);
 
   el.querySelectorAll('.request-row').forEach((row) => {
     row.addEventListener('click', () => openRequestDialog(row.dataset.requestKey));
@@ -580,21 +665,36 @@ function openRequestDialog(key) {
 
   state.activeRequestKey = key;
   const dialog = ensureRequestDialog();
+  const wasHidden = dialog.hidden;
   const body = dialog.querySelector('#requestDialogBody');
   const title = dialog.querySelector('#requestDialogTitle');
   const chronologicalIndex = groups.indexOf(group);
-  const threshold = hotEstimatedCostThreshold(group.calls);
+  const threshold = hotEstimatedCostThreshold(group.calls, 5);
   const request = group.human_request_text || '';
 
   title.innerHTML = `Request ${num(requestNumber(group, chronologicalIndex))}`;
 
-  const callRows = [...group.calls].reverse().map((t) => {
+  const sortedCalls = sortedRows(group.calls, 'llmCalls', (t, key) => {
+    switch (key) {
+      case 'time': return timestampValue(t.timestamp);
+      case 'inputTokens': return t.input_tokens || 0;
+      case 'totalTokens': return totalTokensForLlmCall(t);
+      case 'cacheReadTokens': return t.cache_read_tokens || 0;
+      case 'cacheWriteTokens': return t.cache_write_tokens || 0;
+      case 'outputTokens': return t.output_tokens || 0;
+      case 'estimatedCost': return t.estimated_cost_usd || 0;
+      default: return timestampValue(t.timestamp);
+    }
+  });
+
+  const callRows = sortedCalls.map((t) => {
     const hot = isFinite(threshold) && t.estimated_cost_usd >= threshold && t.estimated_cost_usd > 0;
     const contextTokens = contextTokensForLlmCall(t);
     const contextWindow = contextWindowForLlmCall(t);
     const contextPctTitle = contextWindow
       ? `${fmtTokensFull(contextTokens)} / ${fmtTokensFull(contextWindow)} context tokens`
       : `${fmtTokensFull(contextTokens)} context tokens`;
+    const totalTokens = totalTokensForLlmCall(t);
     return `<tr class="${hot ? 'hot' : ''}">
       <td class="l">${t.llm_call_index + 1}</td>
       <td class="l ts-cell">${fmtDate(t.timestamp)}</td>
@@ -602,10 +702,11 @@ function openRequestDialog(key) {
       <td title="${fmtTokensFull(contextTokens)} context tokens">${fmtTokens(contextTokens)}</td>
       <td title="${esc(contextPctTitle)}">${fmtPct(contextPctForLlmCall(t))}</td>
       <td>${fmtPct(cacheHitPctForLlmCall(t))}</td>
-      <td>${fmtTokensFull(t.input_tokens)}</td>
-      <td>${fmtTokensFull(t.cache_read_tokens)}</td>
-      <td>${fmtTokensFull(t.output_tokens)}</td>
-      <td>${fmtTokensFull(t.cache_write_tokens)}</td>
+      ${tokenCell(t.input_tokens)}
+      ${tokenCell(t.cache_read_tokens)}
+      ${tokenCell(t.cache_write_tokens)}
+      ${tokenCell(t.output_tokens)}
+      ${tokenCell(totalTokens)}
       <td class="estimated-cost">${fmtEstimatedCost(t.estimated_cost_usd)}${hot ? '<span class="hot-flag">▲</span>' : ''}</td>
     </tr>`;
   }).join('');
@@ -622,9 +723,9 @@ function openRequestDialog(key) {
     <div class="dialog-table-wrap">
       <table class="llm-calls">
         <thead><tr>
-          <th class="l">LLM call #</th><th class="l">Time</th><th class="l">Model</th>
+          <th class="l">LLM call #</th>${sortHeader('llmCalls', 'time', 'Time', 'l')}<th class="l">Model</th>
           <th>Context</th><th>Context %</th><th>Cache hit %</th>
-          <th>Fresh input</th><th>Cache R</th><th>Output</th><th>Cache W</th><th>Estimated cost</th>
+          ${sortHeader('llmCalls', 'inputTokens', 'Fresh input')}${sortHeader('llmCalls', 'cacheReadTokens', 'Cache R')}${sortHeader('llmCalls', 'cacheWriteTokens', 'Cache W')}${sortHeader('llmCalls', 'outputTokens', 'Output')}${sortHeader('llmCalls', 'totalTokens', 'Total tokens')}${sortHeader('llmCalls', 'estimatedCost', 'Estimated cost')}
         </tr></thead>
         <tbody>${callRows}</tbody>
       </table>
@@ -633,7 +734,8 @@ function openRequestDialog(key) {
 
   dialog.hidden = false;
   document.body.classList.add('modal-open');
-  dialog.querySelector('#requestDialogClose').focus();
+  bindSortButtons(dialog);
+  if (wasHidden) dialog.querySelector('#requestDialogClose').focus();
 }
 
 function closeRequestDialog() {

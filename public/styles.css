@@ -591,6 +591,43 @@ table.requests thead th {
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
 }
+table.llm-calls thead th.sortable,
+table.requests thead th.sortable { padding: 0; }
+table.llm-calls thead th.sortable .sort-btn,
+table.requests thead th.sortable .sort-btn {
+  width: 100%;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  padding: 8px 10px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: right;
+  text-transform: inherit;
+  cursor: pointer;
+}
+table.llm-calls thead th.sortable.l .sort-btn,
+table.requests thead th.sortable.l .sort-btn { justify-content: flex-start; text-align: left; }
+table.llm-calls thead th.sortable .sort-btn:hover,
+table.requests thead th.sortable .sort-btn:hover,
+table.llm-calls thead th.sortable .sort-btn:focus-visible,
+table.requests thead th.sortable .sort-btn:focus-visible {
+  color: var(--text);
+  background: var(--sel-bg);
+  box-shadow: inset 0 -2px 0 var(--sel-border);
+}
+.sort-indicator {
+  min-width: 9px;
+  color: var(--text-faint);
+  font-size: 9px;
+  line-height: 1;
+}
 table.llm-calls thead th.l,
 table.requests thead th.l,
 table.llm-calls tbody td.l,
@@ -607,8 +644,10 @@ table.llm-calls tbody tr:hover,
 table.requests tbody tr:hover { background: var(--bg-elev-2); }
 table.llm-calls tbody td.estimated-cost,
 table.requests tbody td.estimated-cost { color: var(--cost); }
-table.llm-calls tbody tr.hot { background: var(--hot-bg); }
-table.llm-calls tbody tr.hot td.estimated-cost { color: var(--hot); font-weight: 700; }
+table.llm-calls tbody tr.hot,
+table.requests tbody tr.hot { background: var(--hot-bg); }
+table.llm-calls tbody tr.hot td.estimated-cost,
+table.requests tbody tr.hot td.estimated-cost { color: var(--hot); font-weight: 700; }
 .request-row { cursor: pointer; }
 .request-row:focus { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--bg-elev-2); }
 .model-cell {

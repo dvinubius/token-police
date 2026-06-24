@@ -14,6 +14,7 @@ The product is desktop-only, but desktop-only does not remove keyboard, semantic
 
 - Human request and LLM call data should remain in real table structures.
 - Column headers must describe numeric buckets clearly.
+- Sortable column headers should expose their current sort direction and remain keyboard reachable.
 - Numeric columns should be aligned consistently.
 - Long text should be accessible in full outside truncated table previews.
 
@@ -38,7 +39,7 @@ The product is desktop-only, but desktop-only does not remove keyboard, semantic
 
 - Live/offline refresh status should not rely on visual treatment alone.
 - Empty states should use text, not only absence of content.
-- High-cost LLM call emphasis should not rely on color alone.
+- High-cost Human request and LLM call emphasis should not rely on color alone.
 - Selected Session and keyboard focus should be distinguishable from each other.
 
 ## Content
@@ -46,4 +47,3 @@ The product is desktop-only, but desktop-only does not remove keyboard, semantic
 - Preserve canonical domain terms from `docs/domain-language.md`.
 - Avoid language that implies authoritative billing. Use Estimated cost.
 - Avoid language that implies cloud upload or account-backed analytics.
-

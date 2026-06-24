@@ -30,7 +30,9 @@
 1. User selects a Session row.
 2. Detail pane loads Session metadata and totals.
 3. Human requests appear newest first.
-4. User scans token buckets, context, LLM call count, and Estimated cost per Human request.
+4. User scans token buckets, context, LLM call count, Total tokens, and Estimated cost per Human request.
+5. User sorts Time, LLM calls, token bucket, Total tokens, or Estimated cost columns when ranking Human requests.
+6. Highest-cost Human requests are emphasized in red with a marker.
 
 ## Inspect LLM Calls For A Human Request
 
@@ -38,12 +40,12 @@
 2. Dialog opens.
 3. Full Human request text appears above request-level totals.
 4. Individual LLM calls appear newest first.
-5. High-cost LLM calls receive a distinct emphasis.
-6. User closes the dialog by close button, backdrop click, or Escape.
+5. User sorts Time, token bucket, Total tokens, or Estimated cost columns when ranking LLM calls.
+6. High-cost LLM calls receive a distinct emphasis.
+7. User closes the dialog by close button, backdrop click, or Escape.
 
 ## Empty Or No-Match Flow
 
 1. User opens the app before any Sessions are imported, or filters remove all matches.
 2. Stats and list regions show empty states rather than broken layout.
 3. User can clear filters or wait for local watcher updates.
-
