@@ -30,8 +30,9 @@
 | Date range filters | Filter by last active date. | `#fromDate`, `#toDate` |
 | Clear filters control | Resets filter state. | `#clearFilters` |
 | List metadata | Displays filtered count and Estimated cost. | `#listMeta` |
-| Session list | Contains selectable Session rows. | `#sessionList`, `renderList()` |
+| Session list | Contains selectable Session rows, rendered as an initial window that grows on scroll. | `#sessionList`, `renderList()` |
 | Session row | Selects a Session and summarizes its totals. | `.session-row` |
+| List load sentinel | Marks the end of the rendered window and loads more rows when scrolled near. | `.list-sentinel`, `IntersectionObserver` in `renderList()` |
 
 ## Detail Components
 

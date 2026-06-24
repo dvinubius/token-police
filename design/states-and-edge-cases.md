@@ -21,6 +21,7 @@
 | Project active | Show only selected project. |
 | Date range active | Include Sessions with last activity inside the range. |
 | No matches | Show no-matching-Sessions state and keep filters editable. |
+| Filter changed | Reset the list window to the first page and return the list to the top. |
 | Clear filters | Reset filter controls and list state. |
 
 ## Selection States
@@ -57,6 +58,7 @@
 | Narrow desktop window | Maintain usable navigation and internal scrolling. |
 | Wide desktop window | Preserve readable line lengths and table scannability. |
 | Large tables | Use sticky headers and internal scroll regions where appropriate. |
+| Long Session list | Render an initial window and load more rows on scroll rather than all rows at once. |
 | Expanded LLM call row | Keep table headers and numeric columns stable; expanded content must not reflow the LLM call table. |
 | Sorted tables | Keep sortable headers keyboard reachable and expose direction without disrupting row activation. |
 | Keyboard-only user | Keep tab order, focus, row activation, and dialog close behavior reliable. |

@@ -58,6 +58,9 @@ Behavior:
 - Clear filters resets all filter controls.
 - Session rows show source, title, project, Human request count, LLM call count, total tokens, Estimated cost, and relative recency.
 - Selected Session remains visually and programmatically distinct.
+- The Session list renders an initial window of 20 rows and appends the next 20 as the user scrolls toward the end, until the filtered set is exhausted.
+- List metadata reflects the full filtered set, independent of how many rows are currently windowed into view.
+- Changing any filter resets the window to the first 20 rows and returns the list to the top; auto-refresh preserves the current window.
 
 ## Session Detail
 
