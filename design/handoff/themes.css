@@ -1,0 +1,138 @@
+/* ============================================================================
+ * Token Police — approved themes (Graphite + Clean light)
+ * Drop-in CSS custom properties for public/styles.css.
+ *
+ * Uses the EXISTING variable names from styles.css so current rules keep working,
+ * and ADDS the three new semantic vars (--cost, --token, --ok) introduced by the
+ * cost/tokens/model decoupling. After importing this, apply the small list of
+ * selector repoints documented in visual-system.md §3.
+ *
+ * Fonts (load once, e.g. in index.html <head>):
+ *   <link rel="preconnect" href="https://fonts.googleapis.com">
+ *   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ *   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Saira+Condensed:wght@600;700;800&display=swap">
+ *
+ * Saira Condensed (700/800) is the BRAND wordmark face only — see visual-system.md §Brand.
+ *
+ * Switch themes with: document.documentElement.dataset.theme = 'graphite' | 'light'
+ * ========================================================================== */
+
+/* ---------- Graphite (dark, near-monochrome) ---------- */
+:root[data-theme="graphite"] {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg:           #131314;
+  --bg-elev:      #1c1c1e;
+  --bg-elev-2:    #252528;
+  --border:       #35353b;
+
+  /* text */
+  --text:         #ededec;
+  --text-dim:     #a0a0a3;
+  --text-faint:   #6a6a6e;
+
+  /* metrics (NEW — decoupled from model colors) */
+  --cost:         #e3b341;   /* every Estimated-cost value/column */
+  --token:        #58a6ff;   /* Total-tokens values */
+
+  /* brand */
+  --brand-logo:   var(--token); /* shield badge shell */
+
+  /* model / source identity */
+  --cc:           #bc8cff;   /* Claude Code — bars, badge, legend */
+  --codex:        #56d364;   /* Codex — bars, badge, legend */
+
+  /* status */
+  --ok:           #56d364;   /* live / refreshing dot (was --codex) */
+  --hot:          #f85149;
+  --hot-bg:       rgba(248,81,73,0.12);
+
+  /* ui chrome */
+  --accent:       #d7d7d2;
+  --sel-bg:       #252528;
+  --sel-border:   #8d8d94;
+
+  /* shape */
+  --radius:       10px;
+  --radius-sm:    8px;
+  --border-width: 1px;
+  --shadow:       0 1px 2px rgba(0,0,0,0.5);
+
+  /* type */
+  --sans:    'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --mono:    'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --display: 'Saira Condensed', system-ui, sans-serif;   /* brand wordmark only */
+}
+
+/* ---------- Clean light (warm white, minimal) ---------- */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* surfaces */
+  --bg:           #f6f6f3;
+  --bg-elev:      #ffffff;
+  --bg-elev-2:    #f1f1ec;
+  --border:       #e5e4dd;
+
+  /* text */
+  --text:         #1a1a17;
+  --text-dim:     #5f5f57;
+  --text-faint:   #9b9b90;
+
+  /* metrics (NEW — decoupled from model colors) */
+  --cost:         #b9740c;
+  --token:        #2f6fd6;
+
+  /* brand */
+  --brand-logo:   var(--token);
+
+  /* model / source identity */
+  --cc:           #7a45e0;
+  --codex:        #138a72;
+
+  /* status */
+  --ok:           #1f9d57;
+  --hot:          #d23b3b;
+  --hot-bg:       rgba(210,59,59,0.08);
+
+  /* ui chrome */
+  --accent:       #3457d5;
+  --sel-bg:       #eef2ff;
+  --sel-border:   #3457d5;
+
+  /* shape */
+  --radius:       12px;
+  --radius-sm:    8px;
+  --border-width: 1px;
+  --shadow:       0 1px 3px rgba(20,20,17,0.06);
+
+  /* type */
+  --sans:    'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --display: 'Saira Condensed', system-ui, sans-serif;   /* brand wordmark only */
+}
+
+/* ============================================================================
+ * Source-badge backgrounds (replace the literal rgba() in styles.css .badge.*)
+ * fg = the model color in dark mode; a darkened model color in light mode.
+ * ========================================================================== */
+:root[data-theme="graphite"] .badge.cc    { background: rgba(188,140,255,0.18); color: #bc8cff; }
+:root[data-theme="graphite"] .badge.codex { background: rgba(86,211,100,0.18);  color: #56d364; }
+:root[data-theme="light"]    .badge.cc    { background: rgba(122,69,224,0.13);  color: #6237b3; }
+:root[data-theme="light"]    .badge.codex { background: rgba(19,138,114,0.13);   color: #0f6e5b; }
+
+/* ============================================================================
+ * Reference repoints (already-correct target values shown for convenience).
+ * Add these to styles.css — see visual-system.md §3 for the full list.
+ * ----------------------------------------------------------------------------
+ *   .gstat-value.tokens,
+ *   .tstat.total .tstat-value          { color: var(--token); }   // was --accent
+ *   .gstat-value.estimated-cost,
+ *   .session-estimated-cost,
+ *   .top-estimated-cost,
+ *   .tstat.estimated-cost .tstat-value { color: var(--cost); }    // was --cc
+ *   .refresh .dot                      { background: var(--ok); } // was --codex
+ *   table tbody td.estimated-cost      { color: var(--cost); }    // non-hot
+ *   table tbody tr.hot td.estimated-cost { color: var(--hot); }   // unchanged
+ * ========================================================================== */
