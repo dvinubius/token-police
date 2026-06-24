@@ -10,9 +10,12 @@
  * Fonts (load once, e.g. in index.html <head>):
  *   <link rel="preconnect" href="https://fonts.googleapis.com">
  *   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
- *   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Saira+Condensed:wght@600;700;800&display=swap">
+ *   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Saira+Condensed:wght@600;700;800&display=swap">
  *
- * Saira Condensed (700/800) is the BRAND wordmark face only — see visual-system.md §Brand.
+ * Both themes share ONE typeface pair: Plus Jakarta Sans (--sans) + JetBrains Mono
+ * (--mono). Saira Condensed (700/800) is the BRAND wordmark face only — see
+ * visual-system.md §Brand. (Earlier drafts gave Graphite its own IBM Plex pair;
+ * the typefaces are now theme-independent, so IBM Plex is no longer loaded.)
  *
  * Switch themes with: document.documentElement.dataset.theme = 'graphite' | 'light'
  * UI control: one icon-only top-bar toggle. Display the current-mode icon
@@ -62,9 +65,9 @@
   --border-width: 1px;
   --shadow:       0 1px 2px rgba(0,0,0,0.5);
 
-  /* type */
-  --sans:    'IBM Plex Sans', system-ui, -apple-system, sans-serif;
-  --mono:    'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* type (shared with Clean light — theme-independent) */
+  --sans:    'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --display: 'Saira Condensed', system-ui, sans-serif;   /* brand wordmark only */
 }
 

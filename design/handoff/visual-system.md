@@ -157,3 +157,28 @@ Codex source · selected session · empty vs loaded detail · filtered list stat
 metric · tokens as a key metric · high-cost Human requests and LLM calls (hot rows) · sortable
 table state · keyboard focus · modal active
 state. All map to the token roles above; none should collapse onto a shared hue.
+
+---
+
+## 6. Typography & metric hierarchy
+
+**Typefaces are theme-independent.** Both Graphite and Clean light use one pair:
+
+- `--sans` — **Plus Jakarta Sans** (UI / body)
+- `--mono` — **JetBrains Mono** (numbers, code, timestamps, microlabels; always with `font-variant-numeric: tabular-nums`)
+- `--display` — **Saira Condensed** (700/800), brand wordmark only
+
+Earlier drafts gave Graphite its own **IBM Plex Sans / IBM Plex Mono** pair; this was
+unified so the two themes differ only in color, not type. IBM Plex is no longer loaded —
+see the font `<link>` in `themes.css` header.
+
+**Metric-tile size hierarchy.** The three aggregate-metric tiles are sized to reflect
+their scope, so a glance reads scope before value. Values are mono + tabular-nums.
+
+| Tier | Scope | Selector | Value | Label |
+| --- | --- | --- | --- | --- |
+| Global | whole dataset | `.gstat` | 26px | 11px |
+| Session | selected Session totals | `.totals-grid .tstat` | 18px | 11px |
+| Request | one Human-request dialog | `.dialog-stats .tstat` | 15px | 10px |
+
+Concrete values also live in `tokens.json` → `layout.metricStats`.

@@ -310,7 +310,7 @@ function renderGlobal() {
   document.getElementById('gsEstimatedCost').textContent = fmtEstimatedCost(t.estimated_cost_usd);
   document.getElementById('gsTokens').textContent = fmtTokens(tokens);
   document.getElementById('gsSessions').textContent = t.session_count;
-  document.getElementById('gsLlmCalls').textContent = fmtTokensFull(t.llm_call_count);
+  document.getElementById('gsLlmCalls').textContent = fmtTokens(t.llm_call_count);
 }
 
 /* ---------- daily chart (stacked SVG bars) ---------- */
@@ -726,7 +726,7 @@ function ensureRequestDialog() {
           <h2 id="requestDialogTitle">LLM calls</h2>
           <div class="dialog-model" id="requestDialogModel"></div>
         </div>
-        <button type="button" class="dialog-close" id="requestDialogClose" aria-label="Close dialog">&times;</button>
+        <button type="button" class="dialog-close" id="requestDialogClose" aria-label="Close dialog"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <div class="dialog-body" id="requestDialogBody"></div>
     </div>`;
