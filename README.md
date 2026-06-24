@@ -7,6 +7,8 @@ nothing is uploaded, no accounts, no telemetry.
 
 ![overview](https://img.shields.io/badge/runs-100%25%20local-3fb950) ![port](https://img.shields.io/badge/port-7899-58a6ff)
 
+![Token Police Overview — estimated cost, total tokens, a 30-day daily usage chart split by source, and the top 5 most expensive sessions](docs/assets/Stats.png)
+
 ## What it does
 
 - Parses every Claude Code transcript in `~/.claude/projects/**/*.jsonl` and every
@@ -57,6 +59,16 @@ DASH_NO_OPEN=1 PORT=8080 npm start
   highlighted in red.**
 
 The page auto-refreshes every 30 seconds, so it stays current while you work.
+
+The Sessions list and Session detail side by side — filter on the left, totals and the
+per-Human-request breakdown on the right:
+
+![Sessions list alongside a Session detail with totals and a sortable human-request table](docs/assets/Session_Overview.png)
+
+Inside the LLM call dialog, the top 20% most expensive calls for that human request are
+highlighted in red:
+
+![LLM call dialog for a single human request, with the most expensive calls highlighted in red](docs/assets/Human_Request.png)
 
 ## REST API
 
