@@ -390,9 +390,25 @@ h1, h2 { margin: 0; font-weight: 600; }
 .top-list li:last-child { border-bottom: none; }
 .top-list li:hover .top-title { color: var(--accent); }
 .top-rank { color: var(--text-faint); font-family: var(--mono); font-size: 12px; width: 18px; }
-.top-main { min-width: 0; }
+.top-source,
+.top-summary { display: none; }
+.top-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 .top-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.top-sub { font-size: 11px; color: var(--text-faint); margin-top: 6px; }
+.top-sub {
+  display: block;
+  min-width: 0;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.top-sub .top-project { margin-left: 10px; }
 .top-estimated-cost { font-family: var(--mono); font-weight: 600; color: var(--cost); white-space: nowrap; }
 
 /* ---------- Main split (desktop) ---------- */
@@ -765,6 +781,46 @@ table.requests tbody tr.hot td.estimated-cost { color: var(--hot); font-weight: 
 
 @media (min-width: 1280px) {
   .main { grid-template-columns: 600px minmax(0, 1fr); }
+}
+
+@media (min-width: 800px) {
+  .top-list li {
+    grid-template-columns: auto auto minmax(0, 1fr) minmax(170px, 0.35fr) auto;
+    gap: 12px;
+  }
+  .top-source {
+    display: block;
+    min-width: 0;
+  }
+  .top-main {
+    display: block;
+  }
+  .top-title {
+    display: block;
+  }
+  .top-sub {
+    display: none;
+  }
+  .top-summary {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+    font-size: 11px;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+  .top-summary .top-project {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .top-token-count {
+    flex: 0 0 auto;
+    font-family: var(--mono);
+  }
 }
 
 @media (max-width: 1100px) {

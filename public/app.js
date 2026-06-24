@@ -119,6 +119,7 @@ function relDay(ts) {
   return fmtDateShort(ts);
 }
 function srcLabel(s) { return s === 'codex' ? 'Codex' : 'CC'; }
+function srcFullLabel(s) { return s === 'codex' ? 'Codex' : 'Claude Code'; }
 function srcClass(s) { return s === 'codex' ? 'codex' : 'cc'; }
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, (c) =>
@@ -363,10 +364,14 @@ function renderTop() {
   }
   top.forEach((c, i) => {
     const li = document.createElement('li');
+    const sourceClass = srcClass(c.source);
+    const tokens = fmtTokens(c.total_tokens);
     li.innerHTML =
       `<span class="top-rank">${num(i + 1)}</span>` +
-      `<span class="top-main"><div class="top-title">${esc(c.title)}</div>` +
-      `<div class="top-sub"><span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span> ${esc(c.project)} · ${num(fmtTokens(c.total_tokens))} tok</div></span>` +
+      `<span class="top-source"><span class="badge ${sourceClass}">${srcFullLabel(c.source)}</span></span>` +
+      `<span class="top-main"><span class="top-title">${esc(c.title)}</span>` +
+      `<span class="top-sub"><span class="badge ${sourceClass}">${srcLabel(c.source)}</span><span class="top-project">${esc(c.project)}</span> · ${num(tokens)} tok</span></span>` +
+      `<span class="top-summary"><span class="top-project">${esc(c.project)}</span> <span class="top-token-count">${num(tokens)} tok</span></span>` +
       `<span class="top-estimated-cost">${num(fmtEstimatedCost(c.total_estimated_cost_usd))}</span>`;
     li.onclick = () => selectSession(c.id);
     ol.appendChild(li);
