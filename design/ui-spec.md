@@ -138,7 +138,7 @@ Required LLM call columns:
 Behavior:
 
 - Dialog opens for one Human request at a time.
-- Dialog is top-aligned at a 100px top offset and capped at 1024px wide.
+- Dialog is top-aligned at a 100px top offset and capped at 1280px wide.
 - Human request prompt text is muted, capped to 600px wide, clamped to three lines, and exposes the full text on hover.
 - Model is shown once below the dialog title when consistent, or as a mixed-model summary when multiple models are present.
 - Calls display newest first.
