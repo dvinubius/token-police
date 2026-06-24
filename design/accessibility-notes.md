@@ -17,11 +17,14 @@ The product is desktop-only, but desktop-only does not remove keyboard, semantic
 - Sortable column headers should expose their current sort direction and remain keyboard reachable.
 - Numeric columns should be aligned consistently.
 - Long text should be accessible in full outside truncated table previews.
+- Expanded LLM call details should remain associated with their triggering row and should not change table column semantics.
 
 ## Dialog
 
 - LLM Call Dialog should use modal dialog semantics.
 - Dialog title should identify the current Human request.
+- Dialog header should expose model context below the title.
+- Prompt text blocks should have visible labels such as Initial session prompt and Request prompt.
 - Opening the dialog should move focus to a reliable control or heading.
 - Escape should close the dialog.
 - Closing should return focus to the triggering Human request row when feasible.
@@ -33,6 +36,7 @@ The product is desktop-only, but desktop-only does not remove keyboard, semantic
 - Filter controls must be keyboard reachable in logical order.
 - Session rows should be activatable without pointer input.
 - Human request rows should be activatable with Enter and Space.
+- LLM call rows should be expandable and collapsible with keyboard activation.
 - Close controls must have accessible names.
 
 ## Status And Feedback

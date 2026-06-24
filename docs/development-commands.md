@@ -2,21 +2,16 @@
 
 ## Environment
 
-- Default working directory: `<repository root or specified directory>`
-- Toolchain versions: `<version files or setup source>`
-- Package manager: `<name and lockfile>`
-- Required local services: `<services, setup command, or none>`
+- Default working directory: repository root.
+- Toolchain versions: Node.js 18+ from `package.json`.
+- Package manager: npm with `package-lock.json`.
+- Required local services: none.
 
 ## Commands
 
 ```text
-install:      <command>
-dev:          <command>
-test:focused: <focused test command or usage pattern>
-test:full:    <full test command>
-lint:         <command>
-format:check: <command>
-typecheck:    <command>
-build:        <command>
-verify:       <combined verification command, if available>
+install:      npm install
+dev:          npm start
+test:focused: npm test -- test/llm-insights.test.js
+test:full:    npm test
 ```

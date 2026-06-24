@@ -36,7 +36,8 @@ Do not move pricing, parsing, file watching, or aggregation authority into the f
 - Stats-first default route.
 - Sessions page as filter/list plus detail pane.
 - Human request table as the entry point to LLM call detail.
-- LLM call inspection in a modal dialog.
+- LLM call inspection in a modal dialog with a labelled Request prompt, model summary, fixed-width LLM call columns, and expandable per-call insight sections.
+- Session detail's labelled Initial session prompt block.
 - Thirty-second auto-refresh.
 - Client-side filtering over loaded Sessions.
 - Local-only positioning and language.
@@ -53,7 +54,7 @@ Claude Design should not change product scope, add onboarding, add accounts, add
 - All flows in `user-flows.md` remain possible.
 - Components in `component-inventory.md` are either preserved or clearly mapped to equivalent components.
 - Data columns in `ui-spec.md` remain available.
+- Expandable LLM call insight fields in `ui-spec.md` remain available.
 - Accessibility notes are addressed.
 - Token values are filled only after a visual direction is selected.
 - The app still works as a desktop-only local dashboard.
-

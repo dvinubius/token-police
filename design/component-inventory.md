@@ -39,7 +39,8 @@
 |---|---|---|
 | Empty detail | Placeholder before Session selection. | `#emptyDetail` |
 | Detail pane | Displays selected Session inspection. | `#detailPane`, `renderDetail()` |
-| Session title block | Shows full selected Session title. | `.session-title-card` |
+| Prompt title | Labels prompt text blocks. | `.prompt-title` |
+| Initial session prompt block | Shows the selected Session's initial prompt in a clamped readable block. | `.session-title-card`, `.session-title-text` |
 | Total stat | Displays one selected-Session aggregate. | `.tstat` |
 | Human request table | Lists Human requests with sortable time, call count, token, and Estimated cost summaries. | `.requests`, `groupHumanRequests()`, `sortedRows()` |
 | Human request row | Opens the LLM Call Dialog. | `.request-row` |
@@ -51,8 +52,11 @@
 |---|---|---|
 | Dialog backdrop | Modal layer and backdrop-click close target. | `.dialog-backdrop`, `ensureRequestDialog()` |
 | Request dialog | Contains one Human request's LLM calls. | `.request-dialog`, `openRequestDialog()` |
+| Dialog model summary | Shows the request's shared model or mixed-model summary below the dialog title. | `#requestDialogModel`, `modelSummary()` |
 | Dialog close control | Closes the dialog. | `#requestDialogClose` |
-| Full request text | Shows untruncated Human request text. | `.request-full` |
+| Request prompt block | Shows muted, three-line Human request prompt text with full text on hover. | `.request-full`, `.request-full-text` |
 | Dialog stat | Displays one Human request aggregate. | `.dialog-stats .tstat` |
-| LLM call table | Lists individual LLM calls with sortable time, token, and Estimated cost columns. | `.llm-calls` |
+| LLM call table | Lists individual LLM calls with fixed sortable time, token, and Estimated cost columns. | `.llm-calls` |
+| LLM call expand control | Expands or collapses one LLM call's detail section. | `.expand-toggle`, `.llm-call-row`, `expandedLlmCalls` |
+| LLM call insight section | Shows labelled Activity, Assistant preview, Outcome, and high-cost-only Cost driver and Tool / command hint. | `.llm-call-detail-row`, `.llm-insights`, `llmCallInsightPanel()` |
 | High-cost marker | Marks highest-cost Human requests and top-cost LLM calls within a request. | `.hot`, `.hot-flag`, `hotEstimatedCostThreshold()` |

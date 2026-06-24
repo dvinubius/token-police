@@ -64,7 +64,8 @@ Behavior:
 Required elements:
 
 - Session heading.
-- Session title.
+- `Initial session prompt` label.
+- Initial session prompt text.
 - Source, project, Human request count, LLM call count, date span.
 - Total tokens.
 - Fresh input tokens.
@@ -79,6 +80,7 @@ Behavior:
 - Human requests display newest first.
 - Human request numbering remains chronological.
 - Each row opens the LLM Call Dialog.
+- Initial session prompt text uses the same prompt text size as the Human request dialog and is capped to a readable 600px block.
 - Detail scroll position should survive auto-refresh when possible.
 
 ## Human Request Table
@@ -100,7 +102,7 @@ Required columns:
 Behavior:
 
 - Row activation supports pointer and keyboard.
-- Long request text is previewed in the table and shown fully in the dialog.
+- Long request text is previewed in the table; the full text remains available on hover.
 - Visible token values use compact K/M/B formatting, with exact counts available in tooltips where useful.
 - Time, LLM calls, Total tokens, Fresh input, Cache read, Cache write, Output, and Estimated cost are sortable.
 - Highest-cost Human requests are emphasized in red and include a non-color marker.
@@ -110,17 +112,19 @@ Behavior:
 Required elements:
 
 - Dialog title identifying the Human request number.
+- Model summary displayed below the dialog title.
 - Close control.
-- Full Human request text.
+- `Request prompt` label.
+- Human request prompt text.
 - Request-level totals.
 - LLM call table.
-- High-cost call explanation.
+- Expandable LLM call detail sections.
 
 Required LLM call columns:
 
+- Expand/collapse control.
 - LLM call number.
 - Time.
-- Model.
 - Context.
 - Context percentage.
 - Cache hit percentage.
@@ -134,7 +138,17 @@ Required LLM call columns:
 Behavior:
 
 - Dialog opens for one Human request at a time.
+- Dialog is top-aligned at a 100px top offset and capped at 1024px wide.
+- Human request prompt text is muted, capped to 600px wide, clamped to three lines, and exposes the full text on hover.
+- Model is shown once below the dialog title when consistent, or as a mixed-model summary when multiple models are present.
 - Calls display newest first.
+- The LLM call table uses fixed column widths so expanding a row does not reflow headers or numeric columns.
+- Each LLM call row can expand and collapse via the leading control or row activation.
+- Expanded sections appear directly below the row and use labelled detail fields rather than table columns.
+- Every expanded row shows Activity, Assistant preview, and Outcome.
+- Assistant preview may be shortened visually, but the full assistant text remains available on hover.
+- High-cost expanded rows additionally show Cost driver and Tool / command hint.
+- Expanded detail sections stay visually neutral even when their parent row is high-cost.
 - Visible token values use compact K/M/B formatting, with exact counts available in tooltips where useful.
 - Time, Fresh input, Total tokens, Cache read, Cache write, Output, and Estimated cost are sortable.
 - Calls in the top 20 percent by Estimated cost for that Human request are emphasized when there are enough calls to make the distinction meaningful.

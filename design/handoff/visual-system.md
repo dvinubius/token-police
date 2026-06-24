@@ -141,6 +141,13 @@ table sorts by Time, LLM calls, Fresh input, Cache R, Cache W, Output, Total tok
 and Estimated cost. The LLM call table sorts by Time, Fresh input, Cache R, Cache W,
 Output, Total tokens, and Estimated cost.
 
+The LLM call table in the Human request dialog uses fixed column widths and a
+leading expand/collapse control. Expanded sections are non-tabular detail panels
+with right-aligned labels and left-aligned values for Activity, Assistant preview,
+and Outcome. High-cost expanded sections additionally show Cost driver and Tool /
+command hint, but the expanded panel itself stays visually neutral even when the
+parent row is hot.
+
 Both tables use `--hot` / `--hot-bg` for high-cost row emphasis: highest-cost Human
 requests in the Session breakdown and top-cost LLM calls in the request dialog. Keep
 the visible non-color marker alongside the red Estimated cost value.

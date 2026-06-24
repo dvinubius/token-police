@@ -27,6 +27,7 @@ const state = {
   selectedId: null,
   llmCallsCache: null, // {id, llmCalls, session}
   activeRequestKey: null,
+  expandedLlmCalls: new Set(),
   filters: { search: '', source: '', project: '', from: '', to: '' },
   tableSorts: {
     humanRequests: { key: 'time', dir: 'desc' },
@@ -128,6 +129,11 @@ function esc(s) {
 function num(s) { return `<span class="num">${esc(s)}</span>`; }
 function tokenCell(n) {
   return `<td title="${fmtTokensFull(n)} tokens">${fmtTokens(n)}</td>`;
+}
+
+function detailField(label, value, title = '') {
+  const titleAttr = title ? ` title="${esc(title)}"` : '';
+  return `<div class="insight-field"><div class="insight-label">${esc(label)}</div><div class="insight-value"${titleAttr}>${value ? esc(value) : '<span class="dim">Not captured</span>'}</div></div>`;
 }
 
 function normalizedModel(model) {
@@ -494,6 +500,7 @@ function groupHumanRequests(llmCalls) {
         key,
         human_request_index: t.human_request_index,
         human_request_text: t.human_request_text || '',
+        human_request_full_text: t.human_request_full_text || t.human_request_text || '',
         started_at: t.timestamp,
         last_active_at: t.timestamp,
         calls: [],
@@ -506,6 +513,7 @@ function groupHumanRequests(llmCalls) {
       groups.set(key, g);
     }
     g.calls.push(t);
+    if (!g.human_request_full_text && t.human_request_full_text) g.human_request_full_text = t.human_request_full_text;
     if (!g.started_at || String(t.timestamp).localeCompare(String(g.started_at)) < 0) g.started_at = t.timestamp;
     if (!g.last_active_at || String(t.timestamp).localeCompare(String(g.last_active_at)) > 0) g.last_active_at = t.timestamp;
     g.input_tokens += t.input_tokens || 0;
@@ -524,6 +532,35 @@ function requestNumber(_g, groupIndex) {
 function requestPreview(text, n) {
   const request = text || '';
   return request.length > n ? request.slice(0, n).trimEnd() + '…' : request;
+}
+
+function expandedCallKey(requestKey, llmCall) {
+  return `${state.selectedId || ''}:${requestKey}:${llmCall.llm_call_index}`;
+}
+
+function modelSummary(calls) {
+  const models = [...new Set(calls.map((t) => t.model).filter(Boolean))];
+  if (!models.length) return 'Model not captured';
+  if (models.length === 1) return models[0];
+  const shown = models.slice(0, 3).join(', ');
+  return `Mixed models: ${shown}${models.length > 3 ? ` +${models.length - 3}` : ''}`;
+}
+
+function llmCallInsightPanel(t, hot) {
+  const fields = [
+    detailField('Activity', t.activity_summary || 'No tool activity captured'),
+    detailField(
+      'Assistant preview',
+      t.assistant_preview || 'No assistant text captured',
+      t.assistant_full_text || t.assistant_preview || ''
+    ),
+    detailField('Outcome', t.outcome || 'LLM call recorded'),
+  ];
+  if (hot) {
+    fields.push(detailField('Cost driver', t.cost_driver || 'No single dominant driver detected'));
+    fields.push(detailField('Tool / command hint', t.tool_hint || 'No tool hint captured'));
+  }
+  return `<div class="llm-insights">${fields.join('')}</div>`;
 }
 
 function renderDetail() {
@@ -569,6 +606,7 @@ function renderDetail() {
   const rows = sortedRequests.map((g) => {
     const chronologicalIndex = requests.indexOf(g);
     const request = g.human_request_text || '';
+    const requestFull = g.human_request_full_text || request;
     const requestShort = requestPreview(request, 68);
     const latestLlmCall = latestContextLlmCall(g);
     const latestContextTokens = latestLlmCall ? contextTokensForLlmCall(latestLlmCall) : 0;
@@ -577,7 +615,7 @@ function renderDetail() {
     return `<tr class="request-row ${hot ? 'hot' : ''}" data-request-key="${esc(g.key)}" tabindex="0" role="button" aria-label="Open LLM calls for human request ${requestNumber(g, chronologicalIndex)}">
       <td class="l">${requestNumber(g, chronologicalIndex)}</td>
       <td class="l ts-cell">${fmtDate(g.started_at)}</td>
-      <td class="l request-cell" title="${esc(request)}">${esc(requestShort) || '<span class="dim">—</span>'}</td>
+      <td class="l request-cell" title="${esc(requestFull)}">${esc(requestShort) || '<span class="dim">—</span>'}</td>
       <td>${fmtTokensFull(g.calls.length)}</td>
       <td title="${fmtTokensFull(latestContextTokens)} context tokens">${fmtTokens(latestContextTokens)}</td>
       ${tokenCell(g.input_tokens)}
@@ -592,6 +630,7 @@ function renderDetail() {
   el.innerHTML = `
     <div class="detail-header">
       <h2>Session</h2>
+      <div class="prompt-title">Initial session prompt</div>
       <div class="session-title-card" title="${esc(sessionTitle)}">
         <div class="session-title-text">${esc(sessionTitle)}</div>
       </div>
@@ -649,6 +688,7 @@ function ensureRequestDialog() {
         <div>
           <div class="dialog-kicker">Human request</div>
           <h2 id="requestDialogTitle">LLM calls</h2>
+          <div class="dialog-model" id="requestDialogModel"></div>
         </div>
         <button type="button" class="dialog-close" id="requestDialogClose" aria-label="Close dialog">&times;</button>
       </div>
@@ -673,11 +713,15 @@ function openRequestDialog(key) {
   const wasHidden = dialog.hidden;
   const body = dialog.querySelector('#requestDialogBody');
   const title = dialog.querySelector('#requestDialogTitle');
+  const model = dialog.querySelector('#requestDialogModel');
   const chronologicalIndex = groups.indexOf(group);
   const threshold = hotEstimatedCostThreshold(group.calls, 5);
-  const request = group.human_request_text || '';
+  const request = group.human_request_full_text || group.human_request_text || '';
+  const prevWrap = body.querySelector('.dialog-table-wrap');
+  const savedScroll = prevWrap ? prevWrap.scrollTop : 0;
 
   title.innerHTML = `Request ${num(requestNumber(group, chronologicalIndex))}`;
+  model.textContent = modelSummary(group.calls);
 
   const sortedCalls = sortedRows(group.calls, 'llmCalls', (t, key) => {
     switch (key) {
@@ -700,10 +744,12 @@ function openRequestDialog(key) {
       ? `${fmtTokensFull(contextTokens)} / ${fmtTokensFull(contextWindow)} context tokens`
       : `${fmtTokensFull(contextTokens)} context tokens`;
     const totalTokens = totalTokensForLlmCall(t);
-    return `<tr class="${hot ? 'hot' : ''}">
+    const expandKey = expandedCallKey(group.key, t);
+    const expanded = state.expandedLlmCalls.has(expandKey);
+    return `<tr class="llm-call-row ${hot ? 'hot' : ''}" data-call-key="${esc(expandKey)}" tabindex="0" role="button" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="Toggle details for LLM call ${t.llm_call_index + 1}">
+      <td class="l expand-cell"><button type="button" class="expand-toggle" aria-label="${expanded ? 'Collapse' : 'Expand'} LLM call ${t.llm_call_index + 1}" title="${expanded ? 'Collapse details' : 'Expand details'}">${expanded ? '▾' : '▸'}</button></td>
       <td class="l">${t.llm_call_index + 1}</td>
       <td class="l ts-cell">${fmtDate(t.timestamp)}</td>
-      <td class="l model-cell">${esc(t.model)}</td>
       <td title="${fmtTokensFull(contextTokens)} context tokens">${fmtTokens(contextTokens)}</td>
       <td title="${esc(contextPctTitle)}">${fmtPct(contextPctForLlmCall(t))}</td>
       <td>${fmtPct(cacheHitPctForLlmCall(t))}</td>
@@ -713,11 +759,12 @@ function openRequestDialog(key) {
       ${tokenCell(t.output_tokens)}
       ${tokenCell(totalTokens)}
       <td class="estimated-cost">${fmtEstimatedCost(t.estimated_cost_usd)}${hot ? '<span class="hot-flag">▲</span>' : ''}</td>
-    </tr>`;
+    </tr>${expanded ? `<tr class="llm-call-detail-row ${hot ? 'hot' : ''}"><td colspan="12">${llmCallInsightPanel(t, hot)}</td></tr>` : ''}`;
   }).join('');
 
   body.innerHTML = `
-    <div class="request-full">${esc(request) || '<span class="dim">No human request text captured.</span>'}</div>
+    <div class="prompt-title">Request prompt</div>
+    <div class="request-full" title="${esc(request)}"><div class="request-full-text">${esc(request) || '<span class="dim">No human request text captured.</span>'}</div></div>
     <div class="dialog-stats">
       <div class="tstat"><div class="tstat-label">LLM calls</div><div class="tstat-value">${num(fmtTokensFull(group.calls.length))}</div></div>
       <div class="tstat"><div class="tstat-label">Fresh input</div><div class="tstat-value">${num(fmtTokens(group.input_tokens))}</div></div>
@@ -727,8 +774,22 @@ function openRequestDialog(key) {
     </div>
     <div class="dialog-table-wrap">
       <table class="llm-calls">
+        <colgroup>
+          <col class="col-expand">
+          <col class="col-call">
+          <col class="col-time">
+          <col class="col-context">
+          <col class="col-context-pct">
+          <col class="col-cache-hit">
+          <col class="col-fresh">
+          <col class="col-cache-read">
+          <col class="col-cache-write">
+          <col class="col-output">
+          <col class="col-total">
+          <col class="col-cost">
+        </colgroup>
         <thead><tr>
-          <th class="l">LLM call #</th>${sortHeader('llmCalls', 'time', 'Time', 'l')}<th class="l">Model</th>
+          <th class="l expand-head"></th><th class="l">LLM call #</th>${sortHeader('llmCalls', 'time', 'Time', 'l')}
           <th>Context</th><th>Context %</th><th>Cache hit %</th>
           ${sortHeader('llmCalls', 'inputTokens', 'Fresh input')}${sortHeader('llmCalls', 'cacheReadTokens', 'Cache R')}${sortHeader('llmCalls', 'cacheWriteTokens', 'Cache W')}${sortHeader('llmCalls', 'outputTokens', 'Output')}${sortHeader('llmCalls', 'totalTokens', 'Total tokens')}${sortHeader('llmCalls', 'estimatedCost', 'Estimated cost')}
         </tr></thead>
@@ -740,6 +801,26 @@ function openRequestDialog(key) {
   dialog.hidden = false;
   document.body.classList.add('modal-open');
   bindSortButtons(dialog);
+  body.querySelectorAll('.llm-call-row').forEach((row) => {
+    const toggle = () => {
+      const key = row.dataset.callKey;
+      if (state.expandedLlmCalls.has(key)) state.expandedLlmCalls.delete(key);
+      else state.expandedLlmCalls.add(key);
+      openRequestDialog(group.key);
+    };
+    row.addEventListener('click', toggle);
+    row.addEventListener('keydown', (e) => {
+      if (e.target !== row) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle();
+      }
+    });
+  });
+  if (savedScroll) {
+    const newWrap = body.querySelector('.dialog-table-wrap');
+    if (newWrap) newWrap.scrollTop = savedScroll;
+  }
   if (wasHidden) dialog.querySelector('#requestDialogClose').focus();
 }
 

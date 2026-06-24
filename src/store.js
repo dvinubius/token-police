@@ -27,6 +27,29 @@ function dayKey(ts) {
   return `${y}-${m}-${da}`;
 }
 
+function costDriver(llmCall) {
+  const drivers = [];
+  const context = llmCall.context_input_tokens || 0;
+  const window = llmCall.model_context_window_tokens || 0;
+  const contextPct = llmCall.context_window_used_pct || 0;
+  const cacheHitPct = llmCall.cache_hit_pct || 0;
+  const output = llmCall.output_tokens || 0;
+  const reasoning = llmCall.reasoning_output_tokens || 0;
+  const cacheWrite = llmCall.cache_write_tokens || 0;
+  const toolResultChars = llmCall.tool_result_chars || 0;
+
+  if (window > 0 && contextPct >= 0.5) drivers.push('large context window use');
+  else if (context >= 100000) drivers.push('large context');
+
+  if (context >= 10000 && cacheHitPct < 0.25) drivers.push('low cache hit');
+  if (output >= 8000) drivers.push('high output');
+  if (reasoning >= 2000 || (reasoning > 0 && output > 0 && reasoning / output >= 0.5)) drivers.push('reasoning-heavy output');
+  if (cacheWrite >= 20000) drivers.push('cache write spike');
+  if (toolResultChars >= 20000) drivers.push('large tool result nearby');
+
+  return drivers.slice(0, 3).join(', ');
+}
+
 class Store {
   constructor(pricing) {
     this.pricing = pricing;
@@ -89,6 +112,7 @@ class Store {
       llmCall.fresh_pct = llmCall.context_input_tokens > 0 ? (llmCall.input_tokens || 0) / llmCall.context_input_tokens : 0;
       llmCall.cache_write_pct =
         llmCall.context_input_tokens > 0 ? (llmCall.cache_write_tokens || 0) / llmCall.context_input_tokens : 0;
+      llmCall.cost_driver = costDriver(llmCall);
       tin += llmCall.input_tokens;
       tout += llmCall.output_tokens;
       tread += llmCall.cache_read_tokens;
@@ -141,8 +165,16 @@ class Store {
       llm_call_index: llmCall.llm_call_index,
       human_request_index: llmCall.human_request_index,
       human_request_text: llmCall.human_request_text || '',
+      human_request_full_text: llmCall.human_request_full_text || llmCall.human_request_text || '',
       timestamp: llmCall.timestamp,
       model: llmCall.model,
+      activity_summary: llmCall.activity_summary || '',
+      assistant_preview: llmCall.assistant_preview || '',
+      assistant_full_text: llmCall.assistant_full_text || llmCall.assistant_preview || '',
+      outcome: llmCall.outcome || '',
+      tool_hint: llmCall.tool_hint || '',
+      cost_driver: llmCall.cost_driver || '',
+      reasoning_output_tokens: llmCall.reasoning_output_tokens || 0,
       input_tokens: llmCall.input_tokens,
       output_tokens: llmCall.output_tokens,
       cache_read_tokens: llmCall.cache_read_tokens,

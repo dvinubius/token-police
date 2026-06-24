@@ -23,6 +23,9 @@
 const fs = require('fs');
 const path = require('path');
 
+const TEXT_PREVIEW_MAX = 220;
+const TOOL_HINT_MAX = 140;
+
 const INJECTED_PREFIXES = [
   '# AGENTS.md',
   '<environment_context',
@@ -46,6 +49,97 @@ function cleanTitle(text) {
     .trim();
 }
 
+function cleanInline(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim();
+}
+
+function truncateText(text, n) {
+  const t = cleanInline(text);
+  return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t;
+}
+
+function countByName(names) {
+  const counts = new Map();
+  for (const name of names) {
+    if (!name) continue;
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([name, count]) => (count > 1 ? `${name} x${count}` : name))
+    .join(', ');
+}
+
+function safeJson(value) {
+  if (!value || typeof value !== 'string') return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function basenameHint(value) {
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return path.basename(trimmed);
+}
+
+function commandHint(command) {
+  if (!command || typeof command !== 'string') return '';
+  const parts = command.trim().split(/\s+/).filter(Boolean);
+  const firstExecutable = parts.find((p) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(p));
+  return firstExecutable ? path.basename(firstExecutable) : '';
+}
+
+function toolHint(name, rawArgs) {
+  if (!name) return '';
+  const args = safeJson(rawArgs) || {};
+  const file = basenameHint(args.file_path || args.path);
+  if (file) return truncateText(`${name}: ${file}`, TOOL_HINT_MAX);
+  const command = commandHint(args.command || args.cmd);
+  if (command) return truncateText(`${name}: ${command}`, TOOL_HINT_MAX);
+  return truncateText(name, TOOL_HINT_MAX);
+}
+
+function textFromContent(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .map((part) => {
+      if (typeof part === 'string') return part;
+      if (!part || typeof part !== 'object') return '';
+      return part.text || part.content || '';
+    })
+    .filter(Boolean)
+    .join(' ');
+}
+
+function payloadText(p) {
+  if (!p || typeof p !== 'object') return '';
+  return textFromContent(p.content) || p.message || p.text || '';
+}
+
+function emptyInsight() {
+  return {
+    toolNames: [],
+    assistantText: '',
+    outcome: '',
+    toolHint: '',
+    toolResultChars: 0,
+  };
+}
+
+function applyInsight(llmCall, insight) {
+  if (!llmCall) return;
+  llmCall.activity_summary = countByName(insight.toolNames);
+  llmCall.assistant_preview = truncateText(insight.assistantText, TEXT_PREVIEW_MAX);
+  llmCall.assistant_full_text = cleanInline(insight.assistantText);
+  llmCall.outcome = insight.outcome || '';
+  llmCall.tool_hint = insight.toolHint || '';
+  llmCall.tool_result_chars = insight.toolResultChars || 0;
+}
+
 // Cap a Human request to a short preview so storing it per LLM call stays cheap.
 const HUMAN_REQUEST_PREVIEW_MAX = 160;
 function previewText(text) {
@@ -67,7 +161,10 @@ function parseCodexFile(filePath) {
   let prev = null; // last cumulative totals: {input, cached, output, total}
   let llmCallIndex = 0;
   let currentHumanRequest = ''; // most recent Human request; tagged onto each LLM call
+  let currentHumanRequestFull = '';
   let currentHumanRequestIndex = -1; // increments for each genuine Human request
+  let activeInsight = emptyInsight();
+  let activeLlmCall = null;
 
   for (const line of lines) {
     const s = line.trim();
@@ -107,6 +204,7 @@ function parseCodexFile(filePath) {
         const t = cleanTitle(msg);
         if (t) {
           currentHumanRequest = previewText(t);
+          currentHumanRequestFull = t;
           currentHumanRequestIndex += 1;
           if (!title) title = t;
         }
@@ -142,13 +240,23 @@ function parseCodexFile(filePath) {
         llm_call_index: llmCallIndex++,
         human_request_index: currentHumanRequestIndex >= 0 ? currentHumanRequestIndex : 0,
         human_request_text: currentHumanRequest,
+        human_request_full_text: currentHumanRequestFull || currentHumanRequest,
         timestamp: ts || lastActiveAt,
         model: curModel || 'gpt-5-codex',
+        activity_summary: '',
+        assistant_preview: '',
+        assistant_full_text: '',
+        outcome: '',
+        tool_hint: '',
+        tool_result_chars: 0,
+        reasoning_output_tokens: usage.reasoning_output_tokens || 0,
         input_tokens: freshInput,
         output_tokens: usage.output_tokens || 0,
         cache_read_tokens: cached,
         cache_write_tokens: 0,
       });
+      activeLlmCall = llmCalls[llmCalls.length - 1];
+      activeInsight = emptyInsight();
 
       prev = {
         input: cur.input_tokens || 0,
@@ -156,7 +264,27 @@ function parseCodexFile(filePath) {
         output: cur.output_tokens || 0,
         total: curTotal,
       };
+      continue;
     }
+
+    if (p.type === 'message' || p.type === 'agent_message') {
+      const text = payloadText(p);
+      if (text) activeInsight.assistantText = activeInsight.assistantText || text;
+    } else if (p.type === 'function_call' || p.type === 'custom_tool_call' || p.type === 'web_search_call') {
+      if (p.name) activeInsight.toolNames.push(p.name);
+      if (!activeInsight.toolHint) activeInsight.toolHint = toolHint(p.name, p.arguments || p.input);
+      if (p.status) activeInsight.outcome = p.status;
+    } else if (p.type === 'function_call_output' || p.type === 'custom_tool_call_output') {
+      activeInsight.toolResultChars += JSON.stringify(p.output || '').length;
+      if (p.status) activeInsight.outcome = p.status;
+    } else if (p.type === 'task_complete') {
+      activeInsight.outcome = 'task_complete';
+    } else if (p.type === 'turn_aborted') {
+      activeInsight.outcome = 'turn_aborted';
+    } else if (p.type === 'context_compacted') {
+      activeInsight.outcome = 'context_compacted';
+    }
+    applyInsight(activeLlmCall, activeInsight);
   }
 
   const project = cwd ? path.basename(cwd) : 'codex';

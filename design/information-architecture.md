@@ -37,6 +37,7 @@ Primary regions:
 - Filtered Session list.
 - List metadata.
 - Session detail pane.
+- Initial session prompt.
 - Human request table.
 - Sortable Human request table headers for time, LLM calls, token buckets, Total tokens, and Estimated cost.
 
@@ -57,16 +58,21 @@ Purpose: inspect the individual LLM calls triggered by one Human request.
 Primary regions:
 
 - Dialog heading.
-- Full Human request text.
+- Model summary.
+- Request prompt.
 - Request-level totals.
-- LLM calls table.
+- Fixed-layout LLM calls table.
+- Expandable LLM call insight sections.
 - Sortable LLM call table headers for time, token buckets, Total tokens, and Estimated cost.
 - Note explaining high-cost row emphasis.
 
 Primary actions:
 
 - Close dialog.
-- Inspect per-call model, time, context, cache, token buckets, and Estimated cost.
+- Sort LLM calls.
+- Expand or collapse an LLM call.
+- Inspect per-call time, context, cache, token buckets, Estimated cost, activity, assistant preview, and outcome.
+- Inspect high-cost-only cost driver and tool/command hints.
 
 ## Data Hierarchy
 
@@ -78,16 +84,23 @@ Summary
 
 Session
   Metadata
+  Initial session prompt
   Totals
   Human requests
+    Request prompt
     Aggregated token buckets
     Aggregated Total tokens
     Aggregated Estimated cost
     LLM calls
-      Model
+      Model summary
       Timestamp
       Token buckets
       Total tokens
       Context metrics
       Estimated cost
+      Activity summary
+      Assistant preview
+      Outcome
+      High-cost cost driver
+      High-cost tool/command hint
 ```
