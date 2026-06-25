@@ -130,7 +130,12 @@ class Store {
     session.total_cache_write_tokens = twrite;
     session.total_estimated_cost_usd = totalEstimatedCost;
     session.llm_call_count = session.llm_calls.length;
-    session.human_request_count = requests.size;
+    // Prefer the parser-emitted Human request list when present, so requests
+    // that triggered zero billed LLM calls are still counted. Fall back to the
+    // set of request keys derived from LLM calls (e.g. Codex Sessions).
+    session.human_request_count = Array.isArray(session.human_requests)
+      ? session.human_requests.length
+      : requests.size;
   }
 
   _listItem(session) {
@@ -195,6 +200,7 @@ class Store {
     return {
       ...this._listItem(session),
       session_title: session.title || '',
+      human_requests: Array.isArray(session.human_requests) ? session.human_requests : null,
     };
   }
 

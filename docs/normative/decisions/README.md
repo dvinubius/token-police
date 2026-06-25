@@ -4,4 +4,4 @@
 
 | Decision | Status | Summary |
 |---|---|---|
-| `<NNNN-title.md>` | `<accepted or superseded>` | `<short summary>` |
+| `0001-human-requests-first-class.md` | accepted | Parsers emit Human requests independently of LLM calls so zero-call requests render; Claude interrupt markers are excluded from request indexing. |

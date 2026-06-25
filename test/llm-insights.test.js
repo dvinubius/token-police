@@ -117,6 +117,56 @@ test('Claude parser merges tool_use blocks streamed across split lines of one me
   assert.equal(call.cache_write_tokens, 292);
 });
 
+test('Claude parser emits interrupted requests as zero-call Human requests and ignores interrupt markers', () => {
+  // Reproduces an interrupted session: the initial prompt is interrupted before
+  // any assistant response, then the developer types follow-up prompts. The
+  // interrupt marker must not become a Human request, and the zero-call initial
+  // prompt must still be emitted as its own request.
+  const file = writeJsonl('claude-interrupted.jsonl', [
+    { type: 'user', timestamp: '2026-06-24T10:00:00.000Z', sessionId: 'claude-session', cwd: '/tmp/token-police', message: { content: [{ type: 'text', text: 'Initial prompt that gets interrupted.' }] } },
+    { type: 'user', timestamp: '2026-06-24T10:00:05.000Z', message: { content: [{ type: 'text', text: '[Request interrupted by user]' }] } },
+    { type: 'user', timestamp: '2026-06-24T10:00:10.000Z', message: { content: [{ type: 'text', text: 'Continue' }] } },
+    {
+      type: 'assistant',
+      timestamp: '2026-06-24T10:00:11.000Z',
+      uuid: 'assistant-1',
+      message: {
+        id: 'msg-1',
+        model: 'claude-opus-4-8',
+        stop_reason: 'end_turn',
+        content: [{ type: 'text', text: 'Working on it.' }],
+        usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+      },
+    },
+  ]);
+
+  const session = parseClaudeFile(file);
+
+  // Two genuine Human requests; the interrupt marker is not one of them.
+  assert.equal(session.human_requests.length, 2);
+  assert.deepEqual(
+    session.human_requests.map((r) => r.human_request_index),
+    [0, 1]
+  );
+  assert.equal(session.human_requests[0].human_request_text, 'Initial prompt that gets interrupted.');
+  assert.equal(session.human_requests[1].human_request_text, 'Continue');
+
+  // The interrupt marker did not relabel or re-index the follow-up request.
+  assert.equal(session.llm_calls.length, 1);
+  assert.equal(session.llm_calls[0].human_request_index, 1);
+  assert.equal(session.llm_calls[0].human_request_text, 'Continue');
+
+  // The store counts the zero-call initial prompt and exposes the request list.
+  const store = new Store({
+    estimatedCost() { return 0; },
+    contextWindow() { return 200000; },
+  });
+  store.upsertFromFile('claude-code', file);
+  const meta = store.getSessionMeta(session.id);
+  assert.equal(meta.human_request_count, 2);
+  assert.equal(meta.human_requests.length, 2);
+});
+
 test('Codex parser attributes each response\'s activity to the call its token_count creates', () => {
   // Real Codex ordering: a response emits reasoning/agent_message/function_call/
   // function_call_output FIRST, then the token_count reporting that response's
@@ -206,6 +256,51 @@ test('Codex parser attributes each response\'s activity to the call its token_co
   // The injected user input never surfaces as assistant text on any call.
   assert.ok(!call0.assistant_full_text.includes('permissions instructions'));
   assert.ok(!call1.assistant_full_text.includes('permissions instructions'));
+});
+
+test('Codex parser emits an aborted turn as a zero-call Human request', () => {
+  // A user message whose turn is aborted before any token_count produces no
+  // billed LLM call. It must still be emitted as a Human request so it gets its
+  // own row, distinct from the following request that does produce a call.
+  const file = writeJsonl('codex-aborted.jsonl', [
+    { type: 'session_meta', timestamp: '2026-06-24T10:00:00.000Z', payload: { id: 'codex-aborted', cwd: '/tmp/token-police' } },
+    { type: 'turn_context', timestamp: '2026-06-24T10:00:01.000Z', payload: { model: 'gpt-5-codex' } },
+    { type: 'event_msg', timestamp: '2026-06-24T10:00:02.000Z', payload: { type: 'user_message', message: 'First request that gets aborted.' } },
+    { type: 'response_item', timestamp: '2026-06-24T10:00:03.000Z', payload: { type: 'turn_aborted' } },
+    { type: 'event_msg', timestamp: '2026-06-24T10:00:04.000Z', payload: { type: 'user_message', message: 'please continue' } },
+    {
+      type: 'event_msg',
+      timestamp: '2026-06-24T10:00:05.000Z',
+      payload: {
+        type: 'token_count',
+        info: {
+          total_token_usage: { input_tokens: 100, cached_input_tokens: 20, output_tokens: 10, total_tokens: 110 },
+          last_token_usage: { input_tokens: 100, cached_input_tokens: 20, output_tokens: 10, total_tokens: 110 },
+        },
+      },
+    },
+  ]);
+
+  const session = parseCodexFile(file);
+
+  // Both user messages are Human requests; only the second produced a call.
+  assert.equal(session.human_requests.length, 2);
+  assert.deepEqual(
+    session.human_requests.map((r) => r.human_request_text),
+    ['First request that gets aborted.', 'please continue']
+  );
+  assert.equal(session.llm_calls.length, 1);
+  assert.equal(session.llm_calls[0].human_request_index, 1);
+
+  // The store counts the zero-call aborted request and exposes the list.
+  const store = new Store({
+    estimatedCost() { return 0; },
+    contextWindow() { return 200000; },
+  });
+  store.upsertFromFile('codex', file);
+  const meta = store.getSessionMeta(session.id);
+  assert.equal(meta.human_request_count, 2);
+  assert.equal(meta.human_requests.length, 2);
 });
 
 test('Store projects insight fields and derives cost drivers', () => {

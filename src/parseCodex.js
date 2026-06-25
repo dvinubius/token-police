@@ -152,6 +152,12 @@ function parseCodexFile(filePath) {
   const lines = raw.split('\n');
 
   const llmCalls = [];
+  // Genuine Human requests in chronological order, emitted independently of LLM
+  // calls so a request that triggered zero billed calls (e.g. a turn aborted
+  // before any response) is still represented as its own row downstream. Codex
+  // signals interrupts with `turn_aborted` events rather than a synthetic user
+  // message, so there is no interrupt marker to exclude here.
+  const humanRequests = [];
   let title = '';
   let cwd = '';
   let sessionId = '';
@@ -207,6 +213,12 @@ function parseCodexFile(filePath) {
           currentHumanRequestFull = t;
           currentHumanRequestIndex += 1;
           if (!title) title = t;
+          humanRequests.push({
+            human_request_index: currentHumanRequestIndex,
+            human_request_text: currentHumanRequest,
+            human_request_full_text: currentHumanRequestFull,
+            timestamp: ts || lastActiveAt,
+          });
         }
       }
       // Turn boundary: drop any leftover activity so a new turn's input can't
@@ -317,6 +329,7 @@ function parseCodexFile(filePath) {
     filePath,
     started_at: startedAt,
     last_active_at: lastActiveAt,
+    human_requests: humanRequests,
     llm_calls: llmCalls,
   };
 }

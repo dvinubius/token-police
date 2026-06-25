@@ -526,26 +526,46 @@ function humanRequestKey(t) {
   return request ? `human-request:${request}` : `llm-call:${t.llm_call_index}`;
 }
 
-function groupHumanRequests(llmCalls) {
+function newHumanRequestGroup(key, index, text, fullText, timestamp) {
+  return {
+    key,
+    human_request_index: index,
+    human_request_text: text || '',
+    human_request_full_text: fullText || text || '',
+    started_at: timestamp,
+    last_active_at: timestamp,
+    calls: [],
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_read_tokens: 0,
+    cache_write_tokens: 0,
+    estimated_cost_usd: 0,
+  };
+}
+
+// Build one group per Human request. When the session provides a Human request
+// list (Claude Code), seed groups from it in chronological order so requests
+// with zero LLM calls still get a row; LLM calls then attach by request key.
+// Sessions without the list (e.g. Codex) fall back to call-derived grouping.
+function groupHumanRequests(llmCalls, humanRequests) {
   const groups = new Map();
+  if (Array.isArray(humanRequests)) {
+    for (const r of humanRequests) {
+      const key = String(r.human_request_index);
+      if (!groups.has(key)) {
+        groups.set(key, newHumanRequestGroup(
+          key, r.human_request_index, r.human_request_text, r.human_request_full_text, r.timestamp
+        ));
+      }
+    }
+  }
   for (const t of llmCalls) {
     const key = humanRequestKey(t);
     let g = groups.get(key);
     if (!g) {
-      g = {
-        key,
-        human_request_index: t.human_request_index,
-        human_request_text: t.human_request_text || '',
-        human_request_full_text: t.human_request_full_text || t.human_request_text || '',
-        started_at: t.timestamp,
-        last_active_at: t.timestamp,
-        calls: [],
-        input_tokens: 0,
-        output_tokens: 0,
-        cache_read_tokens: 0,
-        cache_write_tokens: 0,
-        estimated_cost_usd: 0,
-      };
+      g = newHumanRequestGroup(
+        key, t.human_request_index, t.human_request_text, t.human_request_full_text, t.timestamp
+      );
       groups.set(key, g);
     }
     g.calls.push(t);
@@ -610,7 +630,7 @@ function renderDetail() {
   const savedScroll = prevWrap ? prevWrap.scrollTop : 0;
 
   const tokens = c.total_input_tokens + c.total_output_tokens + c.total_cache_read_tokens + c.total_cache_write_tokens;
-  const requests = groupHumanRequests(llmCalls);
+  const requests = groupHumanRequests(llmCalls, c.human_requests);
   state.llmCallsCache.humanRequests = requests;
 
   const sortedRequests = sortedRows(requests, 'humanRequests', (g, key) => {
@@ -865,6 +885,7 @@ function closeRequestDialog() {
   if (!dialog) return;
   dialog.hidden = true;
   state.activeRequestKey = null;
+  state.expandedLlmCalls.clear();
   document.body.classList.remove('modal-open');
 }
 

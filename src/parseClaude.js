@@ -131,6 +131,13 @@ function previewText(text) {
   return t.length > HUMAN_REQUEST_PREVIEW_MAX ? t.slice(0, HUMAN_REQUEST_PREVIEW_MAX) : t;
 }
 
+// Claude Code writes this synthetic user line when the developer interrupts the
+// agent. It is a system marker, not a Human request, so it must not start a new
+// request or relabel the current one.
+function isInterruptMarker(trimmed) {
+  return trimmed.startsWith('[Request interrupted by user');
+}
+
 // Decide whether a user line is a genuine Human request worth using as a title.
 function genuineUserTitle(d) {
   if (d.isMeta) return '';
@@ -142,6 +149,7 @@ function genuineUserTitle(d) {
   if (trimmed.startsWith('Caveat:')) return ''; // local-command preamble
   if (trimmed.includes('<command-name>')) return ''; // slash-command invocation
   if (trimmed.startsWith('<')) return '';
+  if (isInterruptMarker(trimmed)) return ''; // interrupt marker, not a request
   return cleanTitle(raw);
 }
 
@@ -150,6 +158,10 @@ function parseClaudeFile(filePath) {
   const lines = raw.split('\n');
 
   const llmCalls = [];
+  // Genuine Human requests in chronological order, emitted independently of LLM
+  // calls so a request that triggered zero billed calls (e.g. an interrupted
+  // initial prompt) is still represented as its own row downstream.
+  const humanRequests = [];
   // One assistant API response = one message.id, but Claude Code streams it as
   // several JSONL lines (often one content block per line: thinking, text, then
   // each tool_use), all repeating the same id and the same full usage. We bill
@@ -197,6 +209,12 @@ function parseClaudeFile(filePath) {
         currentHumanRequestFull = t;
         currentHumanRequestIndex += 1;
         if (!title) title = t;
+        humanRequests.push({
+          human_request_index: currentHumanRequestIndex,
+          human_request_text: currentHumanRequest,
+          human_request_full_text: currentHumanRequestFull,
+          timestamp: ts || lastActiveAt,
+        });
       }
     }
 
@@ -260,6 +278,7 @@ function parseClaudeFile(filePath) {
     filePath,
     started_at: startedAt,
     last_active_at: lastActiveAt,
+    human_requests: humanRequests,
     llm_calls: llmCalls,
   };
 }
