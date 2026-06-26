@@ -7,6 +7,8 @@
     "public/app.js",
     "public/styles.css",
     "test/llm-insights.test.js",
+    "test/store.test.js",
+    "test/frontend-insights.test.js",
     "design/handoff/themes.css"
   ]
 }

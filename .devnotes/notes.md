@@ -1,5 +1,6 @@
 # Notes
 
-Dealing with nested subagents (depth > 2?). No, it's overkill for this app.
+Dealing with nested subagents (depth > 2?). Maybe later.
+See PRD and issue.
 
 ## Svelte / React port?

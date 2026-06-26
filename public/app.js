@@ -1014,8 +1014,40 @@ function bindControls() {
 }
 
 /* ---------- boot ---------- */
-initTheme();
-setPage(pageFromHash(), false);
-bindControls();
-refresh(true);
-setInterval(() => refresh(false), REFRESH_MS);
+// In the browser (plain <script src>), `module` is undefined, so the app boots.
+// Under Node (tests), export the pure helpers without booting — boot touches
+// document/localStorage/fetch/setInterval, which do not exist there.
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    state,
+    fmtTokens,
+    fmtEstimatedCost,
+    fmtPct,
+    relDay,
+    srcLabel,
+    srcFullLabel,
+    sessionRequestLabel,
+    requestPreview,
+    modelSummary,
+    timestampValue,
+    contextTokensForLlmCall,
+    contextPctForLlmCall,
+    cacheHitPctForLlmCall,
+    totalTokensForGroup,
+    totalTokensForLlmCall,
+    humanRequestKey,
+    groupHumanRequests,
+    hotEstimatedCostThreshold,
+    applyFilters,
+    sortedRows,
+    visibleSessionRows,
+    displayTotals,
+    sessionTotals,
+  };
+} else {
+  initTheme();
+  setPage(pageFromHash(), false);
+  bindControls();
+  refresh(true);
+  setInterval(() => refresh(false), REFRESH_MS);
+}
