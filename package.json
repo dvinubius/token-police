@@ -15,5 +15,8 @@
   "dependencies": {
     "chokidar": "^4.0.3",
     "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "fallow": "^2.88.3"
   }
 }
