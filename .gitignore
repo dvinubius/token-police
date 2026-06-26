@@ -4,6 +4,7 @@
 .fallow/
 
 .cache/
+coverage/
 
 node_modules/
 .claude/*

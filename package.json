@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node start.js",
     "server": "node server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "coverage": "c8 --reporter=json node --test && node scripts/sanitize-coverage.js coverage/coverage-final.json",
+    "health": "npm run coverage && fallow health --coverage coverage/coverage-final.json"
   },
   "engines": {
     "node": ">=18"
@@ -17,6 +19,7 @@
     "express": "^4.21.2"
   },
   "devDependencies": {
+    "c8": "^11.0.0",
     "fallow": "^2.88.3"
   }
 }
