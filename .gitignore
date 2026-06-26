@@ -1,8 +1,10 @@
 .agent/
 .dev-notes/
 .codegraph/
+.fallow/
 
 .cache/
 
 node_modules/
 .claude/*
+
