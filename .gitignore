@@ -2,6 +2,7 @@
 .dev-notes/
 .codegraph/
 .fallow/
+.agent-state/
 
 .cache/
 coverage/
