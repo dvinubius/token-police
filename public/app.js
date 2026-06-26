@@ -147,7 +147,7 @@ function sessionBadges(c, expanded = false, showChevron = true) {
   const badges = [`<span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span>`];
   if (c.is_subagent) badges.push('<span class="badge subagent">SUB</span>');
   else if (showChevron && (c.subagent_session_count || 0) > 0) {
-    badges.push(`<span class="session-chevron" aria-hidden="true">${expanded ? '▾' : '▸'}</span>`);
+    badges.push(`<button type="button" class="session-chevron" data-session-toggle="${esc(c.id)}" aria-label="${expanded ? 'Collapse' : 'Expand'} subagent sessions" aria-expanded="${expanded ? 'true' : 'false'}">${expanded ? '▴' : '▾'}</button>`);
   }
   return `<div class="session-badges">${badges.join('')}</div>`;
 }
@@ -194,9 +194,17 @@ function statsRow(label, values, className = '') {
   </div>`;
 }
 
+function statsBlock(values) {
+  return `<div class="stats-breakdown simple-stats">
+    <div class="stats-row stats-row-single">
+      ${statsGrid(values)}
+    </div>
+  </div>`;
+}
+
 function sessionStats(c) {
   const subagents = Array.isArray(c.subagent_sessions) ? c.subagent_sessions : [];
-  if (c.is_subagent || !subagents.length) return statsGrid(statValues(c));
+  if (c.is_subagent || !subagents.length) return statsBlock(statValues(c));
   return `<div class="stats-breakdown">
     ${statsRow('Total', statValues(c, true), 'total-row')}
     ${statsRow('Main agent', statValues(c))}
@@ -553,13 +561,16 @@ function renderList() {
         `<div class="session-estimated-cost">${num(fmtEstimatedCost(displayed.estimated_cost_usd))}</div>` +
         `<div class="session-meta">${relDay(displayed.last_active_at)}</div>` +
       `</div>`;
-    row.onclick = () => {
-      if (subagentCount && !c.is_subagent) {
+    row.onclick = () => selectSession(c.id);
+    const toggle = row.querySelector('.session-chevron');
+    if (toggle) {
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
         if (expanded) state.expandedSessionIds.delete(c.id);
         else state.expandedSessionIds.add(c.id);
-      }
-      selectSession(c.id);
-    };
+        renderList();
+      });
+    }
     wrap.appendChild(row);
   }
 
