@@ -93,6 +93,17 @@ function addHumanRequest(humanRequests, title, timestamp, currentIndex, previewM
   };
 }
 
+// Record a genuine Human request and advance the parse state's running request
+// fields (most-recent text/full-text/index) that later LLM calls are tagged
+// with. The first request also seeds the session title.
+function assignHumanRequest(state, title, timestamp, previewMax) {
+  const result = addHumanRequest(state.humanRequests, title, timestamp, state.currentHumanRequestIndex, previewMax);
+  state.currentHumanRequest = result.humanRequestText;
+  state.currentHumanRequestFull = result.humanRequestFullText;
+  state.currentHumanRequestIndex = result.humanRequestIndex;
+  if (!state.title) state.title = title;
+}
+
 function updateTimestampRange(range, ts) {
   if (!ts) return range;
   return {
@@ -102,7 +113,7 @@ function updateTimestampRange(range, ts) {
 }
 
 module.exports = {
-  addHumanRequest,
+  assignHumanRequest,
   basenameHint,
   cleanInline,
   cleanXmlishTitle,
