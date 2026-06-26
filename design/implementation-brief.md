@@ -35,9 +35,11 @@ Do not move pricing, parsing, file watching, or aggregation authority into the f
 - Two top-level pages: Stats and Sessions.
 - Stats-first default route.
 - Sessions page as filter/list plus detail pane.
+- Session-list hierarchy for subagent Sessions, including collapsed-by-default parents and chevron-only expansion.
 - Human request table as the entry point to LLM call detail.
 - LLM call inspection in a modal dialog with a labelled Request prompt, model summary, fixed-width LLM call columns, and expandable per-call insight sections.
 - Session detail's labelled Initial session prompt block.
+- Session detail stats as tabular metric rows, with parent Sessions showing inclusive Total, Main agent, and per-subagent rows.
 - Thirty-second auto-refresh.
 - Client-side filtering over loaded Sessions.
 - Local-only positioning and language.

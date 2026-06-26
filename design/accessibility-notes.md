@@ -34,7 +34,8 @@ The product is desktop-only, but desktop-only does not remove keyboard, semantic
 
 - Page tabs must be keyboard reachable.
 - Filter controls must be keyboard reachable in logical order.
-- Session rows should be activatable without pointer input.
+- Session rows should be activatable without pointer input for selection.
+- Parent Session expansion should use a dedicated keyboard-reachable chevron button with an accessible name and `aria-expanded`; whole-row activation should not toggle subagent visibility.
 - Human request rows should be activatable with Enter and Space.
 - LLM call rows should be expandable and collapsible with keyboard activation.
 - Close controls must have accessible names.

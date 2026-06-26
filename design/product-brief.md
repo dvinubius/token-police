@@ -14,7 +14,7 @@ Make token usage inspectable at three levels:
 
 - Overall activity across all imported Sessions.
 - Session-level filtering, comparison, and selection.
-- Human request and LLM call detail for diagnosing what drove usage.
+- Human request, subagent, and LLM call detail for diagnosing what drove usage.
 
 ## Product Boundaries
 
@@ -35,4 +35,3 @@ Make token usage inspectable at three levels:
 ## Design Goal For Claude Design
 
 Explore new design and visual language while preserving the current information structure, component model, user flows, desktop-only assumption, and interaction behavior.
-

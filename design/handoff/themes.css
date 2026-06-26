@@ -129,6 +129,28 @@
 :root[data-theme="light"]    .badge.codex { background: rgba(19,138,114,0.13);   color: #0f6e5b; }
 
 /* ============================================================================
+ * Session hierarchy controls.
+ * Parent rows use a dedicated chevron button below the source badge. Keep the
+ * stack left-aligned so chevrons line up across rows with different badge widths.
+ * Collapsed glyph: ▾. Expanded glyph: ▴. Row clicks select; chevron clicks toggle.
+ * ========================================================================== */
+.session-badges { align-items: flex-start; gap: 7px; }
+.session-chevron {
+  width: 28px;
+  height: 24px;
+  color: color-mix(in srgb, var(--text) 82%, var(--text-dim));
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  font-size: 22px;
+  font-weight: 800;
+}
+.session-chevron:hover,
+.session-chevron:focus-visible {
+  background: color-mix(in srgb, var(--bg-elev-2) 62%, var(--sel-bg));
+}
+
+/* ============================================================================
  * Reference repoints (already-correct target values shown for convenience).
  * Add these to styles.css — see visual-system.md §3 for the full list.
  * ----------------------------------------------------------------------------

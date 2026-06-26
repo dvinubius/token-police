@@ -31,7 +31,10 @@
 | Clear filters control | Resets filter state. | `#clearFilters` |
 | List metadata | Displays filtered count and Estimated cost. | `#listMeta` |
 | Session list | Contains selectable Session rows, rendered as an initial window that grows on scroll. | `#sessionList`, `renderList()` |
-| Session row | Selects a Session and summarizes its totals. | `.session-row` |
+| Session row | Selects a Session and summarizes its totals; parent rows with subagents remain selectable without toggling expansion. | `.session-row` |
+| Session source-badge stack | Vertically stacks the source badge plus either a `SUB` badge or parent expansion chevron. | `.session-badges`, `sessionBadges()` |
+| Session expansion chevron | Toggles parent subagent rows only when the chevron button is activated; collapsed points down and expanded points up. | `.session-chevron`, `expandedSessionIds` |
+| Subagent Session row | Displays a selectable subagent Session directly under its parent with left indentation and right-edge alignment. | `.session-row.subagent-row`, `visibleSessionRows()` |
 | List load sentinel | Marks the end of the rendered window and loads more rows when scrolled near. | `.list-sentinel`, `IntersectionObserver` in `renderList()` |
 
 ## Detail Components
@@ -42,9 +45,9 @@
 | Detail pane | Displays selected Session inspection. | `#detailPane`, `renderDetail()` |
 | Prompt title | Labels prompt text blocks. | `.prompt-title` |
 | Initial session prompt block | Shows the selected Session's initial prompt in a clamped readable block. | `.session-title-card`, `.session-title-text` |
-| Total stat | Displays one selected-Session aggregate. | `.tstat` |
-| Human request table | Lists Human requests with sortable time, call count, token, and Estimated cost summaries. | `.requests`, `groupHumanRequests()`, `sortedRows()` |
-| Human request row | Opens the LLM Call Dialog. | `.request-row` |
+| Session stats block | Displays selected-Session totals as tabular metric columns; parent Sessions with subagents use Total, Main agent, and per-subagent rows. | `.stats-breakdown`, `.stats-row`, `.tstat`, `sessionStats()` |
+| Human request or subagent task table | Lists Human requests, or subagent tasks for selected subagent Sessions, with sortable time, call count, token, and Estimated cost summaries. | `.requests`, `groupHumanRequests()`, `sortedRows()` |
+| Human request or subagent task row | Opens the LLM Call Dialog. | `.request-row` |
 | Sortable table header | Toggles table sort direction for supported analytical columns. | `.sort-btn`, `sortHeader()`, `setTableSort()` |
 
 ## Dialog Components
@@ -52,7 +55,7 @@
 | Component | Responsibility | Current implementation anchor |
 |---|---|---|
 | Dialog backdrop | Modal layer and backdrop-click close target. | `.dialog-backdrop`, `ensureRequestDialog()` |
-| Request dialog | Contains one Human request's LLM calls. | `.request-dialog`, `openRequestDialog()` |
+| Request dialog | Contains one Human request's or subagent task's LLM calls. | `.request-dialog`, `openRequestDialog()` |
 | Dialog model summary | Shows the request's shared model or mixed-model summary below the dialog title. | `#requestDialogModel`, `modelSummary()` |
 | Dialog close control | Closes the dialog. | `#requestDialogClose` |
 | Request prompt block | Shows muted, three-line Human request prompt text with full text on hover. | `.request-full`, `.request-full-text` |

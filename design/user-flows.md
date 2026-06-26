@@ -34,9 +34,19 @@
 5. User sorts Time, LLM calls, token bucket, Total tokens, or Estimated cost columns when ranking Human requests.
 6. Highest-cost Human requests are emphasized in red with a marker.
 
-## Inspect LLM Calls For A Human Request
+## Inspect A Session With Subagents
 
-1. User clicks or keyboard-activates a Human request row.
+1. User finds a parent Session that shows a chevron below the source badge.
+2. User activates the chevron to expand subagent rows.
+3. Subagent Sessions appear directly below the parent row and remain selectable.
+4. User selects the parent Session to inspect inclusive Total, Main agent, and per-subagent stats rows.
+5. User selects a subagent Session to inspect that subagent as a simple one-row Session detail.
+6. User scans the subagent detail using Subagent task labels.
+7. User activates the chevron again to collapse the subagent rows without changing Session selection.
+
+## Inspect LLM Calls For A Human Request Or Subagent Task
+
+1. User clicks or keyboard-activates a Human request row or subagent task row.
 2. Dialog opens 100px from the top of the viewport.
 3. Request prompt appears above request-level totals, clamped to three lines with full text available on hover.
 4. Individual LLM calls appear newest first.

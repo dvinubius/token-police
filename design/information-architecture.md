@@ -35,6 +35,7 @@ Primary regions:
 
 - Filter bar.
 - Filtered Session list.
+- Collapsible subagent rows nested under parent Sessions when available.
 - List metadata.
 - Session detail pane.
 - Initial session prompt.
@@ -49,6 +50,7 @@ Primary actions:
 - Filter by date range.
 - Clear filters.
 - Select a Session.
+- Expand or collapse a parent Session's subagent rows from the Session-list chevron.
 - Open a Human request's LLM call dialog.
 
 ## LLM Call Dialog
@@ -86,6 +88,15 @@ Session
   Metadata
   Initial session prompt
   Totals
+    Parent Session with subagents
+      Inclusive total row
+      Main-agent row
+      Individual subagent rows
+    Simple Session or selected subagent
+      One tabular stats row
+  Subagent Sessions
+    Parent Session relationship
+    Subagent badge and selectable child row
   Human requests
     Request prompt
     Aggregated token buckets

@@ -57,6 +57,12 @@ Behavior:
 - Date filters apply to Session last activity.
 - Clear filters resets all filter controls.
 - Session rows show source, title, project, Human request count, LLM call count, total tokens, Estimated cost, and relative recency.
+- Parent Sessions with subagents are collapsed by default.
+- Parent Session rows show a chevron toggle below the source badge. The chevron is the only expand/collapse control; clicking elsewhere on the row selects the Session.
+- Collapsed parent rows show a downward chevron. Expanded parent rows show an upward chevron.
+- Chevron controls are left-aligned inside the source-badge stack so controls align vertically regardless of source-badge width.
+- Expanded subagent Sessions appear directly below their parent row, indented on the left while keeping the right edge aligned with the parent row.
+- Subagent Session rows use a compact `SUB` badge below the source badge and remain directly selectable.
 - Selected Session remains visually and programmatically distinct.
 - The Session list renders an initial window of 20 rows and appends the next 20 as the user scrolls toward the end, until the filtered set is exhausted.
 - List metadata reflects the full filtered set, independent of how many rows are currently windowed into view.
@@ -70,23 +76,24 @@ Required elements:
 - `Initial session prompt` label.
 - Initial session prompt text.
 - Source, project, Human request count, LLM call count, date span.
-- Total tokens.
-- Fresh input tokens.
-- Output tokens.
-- Cache read tokens.
-- Cache write tokens.
-- Estimated cost.
-- Human request table.
+- Tabular stats block with aligned columns for Total tokens, Fresh input, Output, Cache read, Cache write, and Estimated cost.
+- Human request table, or Subagent task table for selected subagent Sessions.
 
 Behavior:
 
+- Simple Sessions and selected subagent Sessions show one tabular stats row with metric labels.
+- Parent Sessions with subagents show multiple tabular stats rows: Total first, Main agent second, then one row for each subagent.
+- Parent total stats include the main agent plus all grouped subagent Sessions.
+- Main-agent and individual-subagent rows omit repeated metric labels, relying on alignment with the Total row.
+- Main-agent and individual-subagent rows use smaller, less saturated metric values than the Total row while preserving the metric color families.
 - Human requests display newest first.
 - Human request numbering remains chronological.
+- Selected subagent Sessions use `Subagent task` language where the same table structure represents delegated task activity.
 - Each row opens the LLM Call Dialog.
 - Initial session prompt text uses the same prompt text size as the Human request dialog and is capped to a readable 600px block.
 - Detail scroll position should survive auto-refresh when possible.
 
-## Human Request Table
+## Human Request Or Subagent Task Table
 
 Required columns:
 

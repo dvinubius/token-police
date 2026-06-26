@@ -160,7 +160,46 @@ state. All map to the token roles above; none should collapse onto a shared hue.
 
 ---
 
-## 6. Typography & metric hierarchy
+## 6. Session hierarchy and stats presentation
+
+Parent Sessions with subagents use an explicit hierarchy in the Sessions list.
+Parent rows are collapsed by default. When relationship metadata is available,
+subagent rows appear immediately below the parent only after the parent chevron
+button is activated. Subagent rows indent from the left while keeping their right
+edge aligned with the parent row.
+
+The source badge stack is vertical: the source badge sits first, then either a
+compact `SUB` badge for subagent rows or a parent Session chevron button. The
+chevron button is the only expand/collapse target. Row activation selects the
+Session without toggling expansion. Chevron states are vertical only: collapsed
+points down (`▾`), expanded points up (`▴`). Keep the chevron left-aligned in the
+badge stack so controls align across rows even when source badges differ in width.
+
+Current production chevron treatment:
+
+| Property | Value |
+| --- | --- |
+| Hit area | `28px` × `24px` |
+| Glyph | 22px, 800 weight |
+| Default color | `color-mix(in srgb, var(--text) 82%, var(--text-dim))` |
+| Background | transparent |
+| Border | none |
+| Radius | 5px |
+| Hover/focus background | `color-mix(in srgb, var(--bg-elev-2) 62%, var(--sel-bg))` |
+
+Selected Session stats now use a tabular block rather than independent cards.
+All Sessions use the same aligned metric columns: Total tokens, Fresh input,
+Output, Cache read, Cache write, and Estimated cost. Simple Sessions and
+selected subagent Sessions show one labelled stats row. Parent Sessions with
+subagents show Total first, Main agent second, then one row per subagent. The
+Total row includes the main agent plus all grouped subagents. Main-agent and
+subagent rows omit repeated metric labels and rely on column alignment; their
+values are smaller and less saturated while staying in the same metric color
+families.
+
+---
+
+## 7. Typography & metric hierarchy
 
 **Typefaces are theme-independent.** Both Graphite and Clean light use one pair:
 
@@ -172,8 +211,9 @@ Earlier drafts gave Graphite its own **IBM Plex Sans / IBM Plex Mono** pair; thi
 unified so the two themes differ only in color, not type. IBM Plex is no longer loaded —
 see the font `<link>` in `themes.css` header.
 
-**Metric-tile size hierarchy.** The three aggregate-metric tiles are sized to reflect
-their scope, so a glance reads scope before value. Values are mono + tabular-nums.
+**Metric display size hierarchy.** The aggregate metric displays are sized to
+reflect their scope, so a glance reads scope before value. Values are mono +
+tabular-nums.
 
 | Tier | Scope | Selector | Value | Label |
 | --- | --- | --- | --- | --- |

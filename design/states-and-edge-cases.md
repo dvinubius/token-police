@@ -30,6 +30,10 @@
 |---|---|
 | No selected Session | Detail pane shows empty state. |
 | Selected Session | Row and detail pane reflect selection. |
+| Parent Session with subagents collapsed | Show only the parent row; chevron points down. |
+| Parent Session with subagents expanded | Show subagent rows directly below the parent; chevron points up. |
+| Chevron activation | Toggle only the parent row's subagent visibility and do not rely on whole-row activation. |
+| Selected subagent Session | Show a simple one-row stats block and subagent task language where applicable. |
 | Selected Session removed | Detail fetch may fail; the UI should avoid crashing and allow another selection. |
 | Auto-refresh during detail inspection | Preserve scroll position where possible. |
 | Open dialog during refresh | Reopen the active Human request if it still exists. |
@@ -59,6 +63,9 @@
 | Wide desktop window | Preserve readable line lengths and table scannability. |
 | Large tables | Use sticky headers and internal scroll regions where appropriate. |
 | Long Session list | Render an initial window and load more rows on scroll rather than all rows at once. |
+| Mixed-width source badges | Keep Session-list chevron controls left-aligned so they visually line up across rows. |
+| Parent Session stats with subagents | Keep Total, Main agent, and per-subagent values aligned in tabular columns without repeating metric labels below the Total row. |
+| Simple Session stats | Use the same tabular stats treatment as parent Sessions, but with one labelled row. |
 | Expanded LLM call row | Keep table headers and numeric columns stable; expanded content must not reflow the LLM call table. |
 | Sorted tables | Keep sortable headers keyboard reachable and expose direction without disrupting row activation. |
 | Keyboard-only user | Keep tab order, focus, row activation, and dialog close behavior reliable. |

@@ -23,6 +23,7 @@ The visual direction should still make these distinctions clear:
 - Active page.
 - Live, refreshing, offline, or failed refresh status.
 - Claude Code source versus Codex source.
+- Parent Session versus subagent Session hierarchy.
 - Selected Session.
 - Empty detail state versus loaded detail state.
 - Filtered list state.
