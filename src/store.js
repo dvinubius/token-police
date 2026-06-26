@@ -50,6 +50,32 @@ function costDriver(llmCall) {
   return drivers.slice(0, 3).join(', ');
 }
 
+function sessionTotals(session) {
+  return {
+    total_input_tokens: session.total_input_tokens || 0,
+    total_output_tokens: session.total_output_tokens || 0,
+    total_cache_read_tokens: session.total_cache_read_tokens || 0,
+    total_cache_write_tokens: session.total_cache_write_tokens || 0,
+    total_estimated_cost_usd: session.total_estimated_cost_usd || 0,
+    llm_call_count: session.llm_call_count || 0,
+  };
+}
+
+function addSessionTotals(totals, session) {
+  totals.total_input_tokens += session.total_input_tokens || 0;
+  totals.total_output_tokens += session.total_output_tokens || 0;
+  totals.total_cache_read_tokens += session.total_cache_read_tokens || 0;
+  totals.total_cache_write_tokens += session.total_cache_write_tokens || 0;
+  totals.total_estimated_cost_usd += session.total_estimated_cost_usd || 0;
+  totals.llm_call_count += session.llm_call_count || 0;
+}
+
+function timestampMax(a, b) {
+  if (!a) return b || '';
+  if (!b) return a || '';
+  return String(a).localeCompare(String(b)) >= 0 ? a : b;
+}
+
 class Store {
   constructor(pricing) {
     this.pricing = pricing;
@@ -138,7 +164,50 @@ class Store {
       : requests.size;
   }
 
-  _listItem(session) {
+  _childMap() {
+    const children = new Map();
+    for (const session of this.sessions.values()) {
+      if (!session.is_subagent || !session.parent_session_id) continue;
+      if (!this.sessions.has(session.parent_session_id)) continue;
+      if (!children.has(session.parent_session_id)) children.set(session.parent_session_id, []);
+      children.get(session.parent_session_id).push(session);
+    }
+    for (const items of children.values()) {
+      items.sort((a, b) => String(b.last_active_at).localeCompare(String(a.last_active_at)));
+    }
+    return children;
+  }
+
+  _descendants(session, childMap, seen = new Set()) {
+    if (!session || seen.has(session.id)) return [];
+    seen.add(session.id);
+    const direct = childMap.get(session.id) || [];
+    const out = [];
+    for (const child of direct) {
+      out.push(child);
+      out.push(...this._descendants(child, childMap, seen));
+    }
+    return out;
+  }
+
+  _inclusiveTotals(session, descendants) {
+    const totals = sessionTotals(session);
+    for (const child of descendants) addSessionTotals(totals, child);
+    return totals;
+  }
+
+  _inclusiveLastActive(session, descendants) {
+    return descendants.reduce((latest, child) => timestampMax(latest, child.last_active_at), session.last_active_at);
+  }
+
+  _subagentLabel(session) {
+    if (!session.is_subagent) return '';
+    const role = session.subagent_role || session.subagent_kind || 'subagent';
+    return session.subagent_name ? `${session.subagent_name} · ${role}` : role;
+  }
+
+  _listItem(session, descendants = []) {
+    const inclusive = this._inclusiveTotals(session, descendants);
     return {
       id: session.id,
       source: session.source,
@@ -153,14 +222,50 @@ class Store {
       total_estimated_cost_usd: session.total_estimated_cost_usd,
       llm_call_count: session.llm_call_count,
       human_request_count: session.human_request_count,
+      thread_source: session.thread_source || (session.is_subagent ? 'subagent' : 'user'),
+      is_subagent: !!session.is_subagent,
+      parent_session_id: session.parent_session_id || '',
+      subagent_kind: session.subagent_kind || '',
+      subagent_name: session.subagent_name || '',
+      subagent_role: session.subagent_role || '',
+      subagent_depth: session.subagent_depth || 0,
+      subagent_label: this._subagentLabel(session),
+      subagent_session_count: descendants.length,
+      inclusive_total_input_tokens: inclusive.total_input_tokens,
+      inclusive_total_output_tokens: inclusive.total_output_tokens,
+      inclusive_total_cache_read_tokens: inclusive.total_cache_read_tokens,
+      inclusive_total_cache_write_tokens: inclusive.total_cache_write_tokens,
+      inclusive_total_estimated_cost_usd: inclusive.total_estimated_cost_usd,
+      inclusive_llm_call_count: inclusive.llm_call_count,
+      inclusive_last_active_at: this._inclusiveLastActive(session, descendants),
     };
   }
 
   /** All Sessions, sorted by last activity descending. */
   listSessions() {
-    return [...this.sessions.values()]
-      .map((session) => this._listItem(session))
-      .sort((a, b) => String(b.last_active_at).localeCompare(String(a.last_active_at)));
+    const childMap = this._childMap();
+    const placed = new Set();
+    const rows = [];
+
+    const appendWithChildren = (session) => {
+      if (!session || placed.has(session.id)) return;
+      const descendants = this._descendants(session, childMap);
+      rows.push(this._listItem(session, descendants));
+      placed.add(session.id);
+      for (const child of childMap.get(session.id) || []) appendWithChildren(child);
+    };
+
+    const roots = [...this.sessions.values()].filter(
+      (session) => !session.is_subagent || !session.parent_session_id || !this.sessions.has(session.parent_session_id)
+    );
+    roots.sort((a, b) => {
+      const aLatest = this._inclusiveLastActive(a, this._descendants(a, childMap));
+      const bLatest = this._inclusiveLastActive(b, this._descendants(b, childMap));
+      return String(bLatest).localeCompare(String(aLatest));
+    });
+
+    for (const session of roots) appendWithChildren(session);
+    return rows;
   }
 
   getLlmCalls(id) {
@@ -197,10 +302,13 @@ class Store {
   getSessionMeta(id) {
     const session = this.sessions.get(id);
     if (!session) return null;
+    const childMap = this._childMap();
+    const descendants = this._descendants(session, childMap);
     return {
-      ...this._listItem(session),
+      ...this._listItem(session, descendants),
       session_title: session.title || '',
       human_requests: Array.isArray(session.human_requests) ? session.human_requests : null,
+      subagent_sessions: descendants.map((child) => this._listItem(child, this._descendants(child, childMap))),
     };
   }
 

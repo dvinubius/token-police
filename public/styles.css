@@ -491,6 +491,9 @@ input:focus, select:focus, button:focus-visible { border-color: var(--accent); b
 }
 .session-row:hover { border-color: var(--sel-border); }
 .session-row.selected { border-color: var(--sel-border); background: var(--sel-bg); }
+.session-row.subagent-row {
+  margin-left: var(--subagent-indent, 18px);
+}
 .list-sentinel { height: 1px; flex: 0 0 auto; }
 
 .badge {
@@ -504,7 +507,29 @@ input:focus, select:focus, button:focus-visible { border-color: var(--accent); b
 }
 .badge.cc { background: var(--badge-cc-bg); color: var(--cc); }
 .badge.codex { background: var(--badge-codex-bg); color: var(--codex); }
+.badge.subagent {
+  background: var(--bg);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
 
+.session-badges {
+  display: inline-flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.session-chevron {
+  width: 24px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1;
+}
 .session-main { min-width: 0; }
 .session-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .session-sub { display: flex; gap: 10px; font-size: 11px; color: var(--text-faint); margin-top: 2px; }
@@ -592,12 +617,76 @@ input:focus, select:focus, button:focus-visible { border-color: var(--accent); b
 .tstat-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em; }
 .tstat-value { font-family: var(--mono); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
 .tstat.total .tstat-value { color: var(--token); }
+.tstat.output .tstat-value { color: var(--ok); }
+.tstat.cache-read .tstat-value { color: var(--codex); }
+.tstat.cache-write .tstat-value { color: var(--cc); }
 .tstat.estimated-cost .tstat-value { color: var(--cost); }
 
 /* Stat hierarchy: global (largest) > session > human request (smallest).
    Session totals sit a tick above the per-request dialog stats. */
 .totals-grid .tstat-label { font-size: 11px; }
 .totals-grid .tstat-value { font-size: 18px; }
+
+.stats-breakdown {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.stats-breakdown .totals-grid {
+  margin-bottom: 0;
+}
+.stats-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.18fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+.stats-row-label {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 9px 10px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stats-row.total-row .stats-row-label {
+  color: var(--text);
+}
+.stats-breakdown .stats-row:not(.total-row) .tstat {
+  padding-block: 8px;
+}
+.stats-breakdown .stats-row:not(.total-row) .tstat-value {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 0;
+}
+.stats-breakdown .stats-row:not(.total-row) .tstat.total .tstat-value {
+  color: color-mix(in srgb, var(--token) 56%, var(--text-dim));
+}
+.stats-breakdown .stats-row:not(.total-row) .tstat.fresh .tstat-value {
+  color: color-mix(in srgb, var(--accent) 42%, var(--text-dim));
+}
+.stats-breakdown .stats-row:not(.total-row) .tstat.output .tstat-value {
+  color: color-mix(in srgb, var(--ok) 52%, var(--text-dim));
+}
+.stats-breakdown .stats-row:not(.total-row) .tstat.cache-read .tstat-value {
+  color: color-mix(in srgb, var(--codex) 50%, var(--text-dim));
+}
+.stats-breakdown .stats-row:not(.total-row) .tstat.cache-write .tstat-value {
+  color: color-mix(in srgb, var(--cc) 50%, var(--text-dim));
+}
+.stats-breakdown .stats-row:not(.total-row) .tstat.estimated-cost .tstat-value {
+  color: color-mix(in srgb, var(--cost) 55%, var(--text-dim));
+}
 
 .requests-wrap,
 .dialog-table-wrap {
@@ -956,6 +1045,8 @@ table.requests tbody tr.hot td.estimated-cost { color: var(--hot); font-weight: 
 
 @media (max-width: 760px) {
   .totals-grid { grid-template-columns: repeat(2, 1fr); }
+  .stats-row { grid-template-columns: 1fr; }
+  .session-row.subagent-row { margin-left: 12px; }
   .llm-insights { padding-left: 14px; }
   .insight-field { grid-template-columns: 1fr; gap: 3px; }
 }

@@ -173,6 +173,12 @@ function parseClaudeFile(filePath) {
   let title = '';
   let cwd = '';
   let sessionId = '';
+  let isSubagent = false;
+  let parentSessionId = '';
+  let subagentKind = '';
+  let subagentName = '';
+  let subagentRole = '';
+  let subagentDepth = 0;
   let startedAt = null;
   let lastActiveAt = null;
   let llmCallIndex = 0;
@@ -198,6 +204,15 @@ function parseClaudeFile(filePath) {
     }
     if (d.cwd && !cwd) cwd = d.cwd;
     if (d.sessionId && !sessionId) sessionId = d.sessionId;
+    if (d.isSidechain) {
+      isSubagent = true;
+      subagentKind = subagentKind || 'sidechain';
+      parentSessionId = parentSessionId || d.sessionId || '';
+      subagentName = subagentName || d.attributionAgent || d.agentId || '';
+    }
+    if (isSubagent && d.attributionAgent && (!subagentName || subagentName === d.agentId)) {
+      subagentName = d.attributionAgent;
+    }
 
     if (d.type === 'user') {
       const content = d.message && d.message.content;
@@ -266,6 +281,13 @@ function parseClaudeFile(filePath) {
   }
 
   const encodedDir = path.basename(path.dirname(filePath));
+  const parentDir = path.basename(path.dirname(path.dirname(filePath)));
+  if (path.basename(path.dirname(filePath)) === 'subagents') {
+    isSubagent = true;
+    subagentKind = subagentKind || 'sidechain';
+    parentSessionId = parentSessionId || sessionId || parentDir;
+    subagentDepth = subagentDepth || 1;
+  }
   const project = cwd ? path.basename(cwd) : encodedDir;
 
   return {
@@ -275,6 +297,14 @@ function parseClaudeFile(filePath) {
     title: title || '(no human request)',
     cwd,
     sessionId,
+    thread_session_id: sessionId,
+    thread_source: isSubagent ? 'subagent' : 'user',
+    is_subagent: isSubagent,
+    parent_session_id: isSubagent ? parentSessionId : '',
+    subagent_kind: subagentKind,
+    subagent_name: subagentName,
+    subagent_role: subagentRole,
+    subagent_depth: subagentDepth,
     filePath,
     started_at: startedAt,
     last_active_at: lastActiveAt,

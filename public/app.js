@@ -28,6 +28,7 @@ const state = {
   summary: null,
   listLimit: LIST_PAGE, // rows currently rendered in the session list; grows on scroll
   selectedId: null,
+  expandedSessionIds: new Set(),
   llmCallsCache: null, // {id, llmCalls, session}
   activeRequestKey: null,
   expandedLlmCalls: new Set(),
@@ -125,6 +126,34 @@ function relDay(ts) {
 function srcLabel(s) { return s === 'codex' ? 'Codex' : 'CC'; }
 function srcFullLabel(s) { return s === 'codex' ? 'Codex' : 'Claude Code'; }
 function srcClass(s) { return s === 'codex' ? 'codex' : 'cc'; }
+function sessionRequestLabel(c) { return c && c.is_subagent ? 'Subagent task' : 'Human request'; }
+function displayTotals(c) {
+  const inclusive = !c.is_subagent && (c.subagent_session_count || 0) > 0;
+  return {
+    input_tokens: inclusive ? c.inclusive_total_input_tokens : c.total_input_tokens,
+    output_tokens: inclusive ? c.inclusive_total_output_tokens : c.total_output_tokens,
+    cache_read_tokens: inclusive ? c.inclusive_total_cache_read_tokens : c.total_cache_read_tokens,
+    cache_write_tokens: inclusive ? c.inclusive_total_cache_write_tokens : c.total_cache_write_tokens,
+    estimated_cost_usd: inclusive ? c.inclusive_total_estimated_cost_usd : c.total_estimated_cost_usd,
+    llm_call_count: inclusive ? c.inclusive_llm_call_count : c.llm_call_count,
+    last_active_at: inclusive ? c.inclusive_last_active_at : c.last_active_at,
+  };
+}
+function totalTokensForTotals(t) {
+  return (t.input_tokens || 0) + (t.output_tokens || 0) +
+    (t.cache_read_tokens || 0) + (t.cache_write_tokens || 0);
+}
+function sessionBadges(c, expanded = false, showChevron = true) {
+  const badges = [`<span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span>`];
+  if (c.is_subagent) badges.push('<span class="badge subagent">SUB</span>');
+  else if (showChevron && (c.subagent_session_count || 0) > 0) {
+    badges.push(`<span class="session-chevron" aria-hidden="true">${expanded ? '▾' : '▸'}</span>`);
+  }
+  return `<div class="session-badges">${badges.join('')}</div>`;
+}
+function subagentDisplayName(c) {
+  return c.subagent_label || c.subagent_name || c.subagent_role || c.title || 'Subagent';
+}
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -132,6 +161,47 @@ function esc(s) {
 function num(s) { return `<span class="num">${esc(s)}</span>`; }
 function tokenCell(n) {
   return `<td title="${fmtTokensFull(n)} tokens">${fmtTokens(n)}</td>`;
+}
+
+function statsGrid(t, options = {}) {
+  const tokens = totalTokensForTotals(t);
+  const labels = options.labels !== false;
+  return `<div class="totals-grid">
+    <div class="tstat total">${labels ? '<div class="tstat-label">Total Tokens</div>' : ''}<div class="tstat-value">${num(fmtTokens(tokens))}</div></div>
+    <div class="tstat fresh">${labels ? '<div class="tstat-label">Fresh input</div>' : ''}<div class="tstat-value">${num(fmtTokens(t.input_tokens))}</div></div>
+    <div class="tstat output">${labels ? '<div class="tstat-label">Output</div>' : ''}<div class="tstat-value">${num(fmtTokens(t.output_tokens))}</div></div>
+    <div class="tstat cache-read">${labels ? '<div class="tstat-label">Cache read</div>' : ''}<div class="tstat-value">${num(fmtTokens(t.cache_read_tokens))}</div></div>
+    <div class="tstat cache-write">${labels ? '<div class="tstat-label">Cache write</div>' : ''}<div class="tstat-value">${num(fmtTokens(t.cache_write_tokens))}</div></div>
+    <div class="tstat estimated-cost">${labels ? '<div class="tstat-label">Estimated cost</div>' : ''}<div class="tstat-value">${num(fmtEstimatedCost(t.estimated_cost_usd))}</div></div>
+  </div>`;
+}
+
+function statValues(c, inclusive = false) {
+  return {
+    input_tokens: inclusive ? c.inclusive_total_input_tokens : c.total_input_tokens,
+    output_tokens: inclusive ? c.inclusive_total_output_tokens : c.total_output_tokens,
+    cache_read_tokens: inclusive ? c.inclusive_total_cache_read_tokens : c.total_cache_read_tokens,
+    cache_write_tokens: inclusive ? c.inclusive_total_cache_write_tokens : c.total_cache_write_tokens,
+    estimated_cost_usd: inclusive ? c.inclusive_total_estimated_cost_usd : c.total_estimated_cost_usd,
+  };
+}
+
+function statsRow(label, values, className = '') {
+  const isTotal = className.split(/\s+/).includes('total-row');
+  return `<div class="stats-row ${className}">
+    <div class="stats-row-label">${esc(label)}</div>
+    ${statsGrid(values, { labels: isTotal })}
+  </div>`;
+}
+
+function sessionStats(c) {
+  const subagents = Array.isArray(c.subagent_sessions) ? c.subagent_sessions : [];
+  if (c.is_subagent || !subagents.length) return statsGrid(statValues(c));
+  return `<div class="stats-breakdown">
+    ${statsRow('Total', statValues(c, true), 'total-row')}
+    ${statsRow('Main agent', statValues(c))}
+    ${subagents.map((s) => statsRow(subagentDisplayName(s), statValues(s), 'subagent-stats-row')).join('')}
+  </div>`;
 }
 
 function detailField(label, value, title = '') {
@@ -435,16 +505,25 @@ function resetListWindow() {
   document.getElementById('sessionList').scrollTop = 0;
 }
 
+function visibleSessionRows(rows) {
+  const rowIds = new Set(rows.map((row) => row.id));
+  return rows.filter((row) => {
+    if (!row.is_subagent) return true;
+    return rowIds.has(row.parent_session_id) && state.expandedSessionIds.has(row.parent_session_id);
+  });
+}
+
 function renderList() {
   const wrap = document.getElementById('sessionList');
   const filtered = applyFilters(state.sessions);
+  const visible = visibleSessionRows(filtered);
   const totalEstimatedCost = filtered.reduce((s, c) => s + c.total_estimated_cost_usd, 0);
   document.getElementById('listMeta').innerHTML =
-    `${num(filtered.length)} session${filtered.length === 1 ? '' : 's'} · ${num(fmtEstimatedCost(totalEstimatedCost))}`;
+    `${num(visible.length)} visible / ${num(filtered.length)} session${filtered.length === 1 ? '' : 's'} · ${num(fmtEstimatedCost(totalEstimatedCost))}`;
 
   if (listObserver) listObserver.disconnect();
   wrap.replaceChildren();
-  if (!filtered.length) {
+  if (!visible.length) {
     const empty = document.createElement('div');
     empty.className = 'dim';
     empty.style.padding = '16px';
@@ -453,28 +532,39 @@ function renderList() {
     return;
   }
 
-  const limit = Math.min(state.listLimit, filtered.length);
+  const limit = Math.min(state.listLimit, visible.length);
   for (let i = 0; i < limit; i++) {
-    const c = filtered[i];
-    const tokens = c.total_input_tokens + c.total_output_tokens + c.total_cache_read_tokens + c.total_cache_write_tokens;
+    const c = visible[i];
+    const displayed = displayTotals(c);
+    const tokens = totalTokensForTotals(displayed);
+    const subagentCount = c.subagent_session_count || 0;
+    const expanded = state.expandedSessionIds.has(c.id);
     const row = document.createElement('div');
-    row.className = 'session-row' + (c.id === state.selectedId ? ' selected' : '');
+    row.className = 'session-row' + (c.is_subagent ? ' subagent-row' : '') + (subagentCount && !c.is_subagent ? ' has-subagents' : '') + (c.id === state.selectedId ? ' selected' : '');
+    if (subagentCount && !c.is_subagent) row.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    if (c.is_subagent) row.style.setProperty('--subagent-indent', `${Math.max(1, c.subagent_depth || 1) * 18}px`);
     row.innerHTML =
-      `<span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span>` +
+      sessionBadges(c, expanded) +
       `<div class="session-main">` +
         `<div class="session-title">${esc(c.title)}</div>` +
-        `<div class="session-sub"><span class="proj">${esc(c.project)}</span><span>${num(c.human_request_count || 0)} human req</span><span>${num(c.llm_call_count)} LLM calls</span><span>${num(fmtTokens(tokens))} tok</span></div>` +
+        `<div class="session-sub"><span class="proj">${esc(c.project)}</span><span>${num(c.human_request_count || 0)} ${c.is_subagent ? 'tasks' : 'human req'}</span>${subagentCount && !c.is_subagent ? `<span>${num(subagentCount)} subagents</span>` : ''}<span>${num(displayed.llm_call_count)} LLM calls</span><span>${num(fmtTokens(tokens))} tok</span></div>` +
       `</div>` +
       `<div class="session-right">` +
-        `<div class="session-estimated-cost">${num(fmtEstimatedCost(c.total_estimated_cost_usd))}</div>` +
-        `<div class="session-meta">${relDay(c.last_active_at)}</div>` +
+        `<div class="session-estimated-cost">${num(fmtEstimatedCost(displayed.estimated_cost_usd))}</div>` +
+        `<div class="session-meta">${relDay(displayed.last_active_at)}</div>` +
       `</div>`;
-    row.onclick = () => selectSession(c.id);
+    row.onclick = () => {
+      if (subagentCount && !c.is_subagent) {
+        if (expanded) state.expandedSessionIds.delete(c.id);
+        else state.expandedSessionIds.add(c.id);
+      }
+      selectSession(c.id);
+    };
     wrap.appendChild(row);
   }
 
   // Infinite scroll: a sentinel below the window grows it as it nears view.
-  if (limit < filtered.length) {
+  if (limit < visible.length) {
     const sentinel = document.createElement('div');
     sentinel.className = 'list-sentinel';
     wrap.appendChild(sentinel);
@@ -629,9 +719,11 @@ function renderDetail() {
   const prevWrap = el.querySelector('.requests-wrap');
   const savedScroll = prevWrap ? prevWrap.scrollTop : 0;
 
-  const tokens = c.total_input_tokens + c.total_output_tokens + c.total_cache_read_tokens + c.total_cache_write_tokens;
   const requests = groupHumanRequests(llmCalls, c.human_requests);
   state.llmCallsCache.humanRequests = requests;
+  const requestLabel = sessionRequestLabel(c);
+  const subagentCount = c.subagent_session_count || 0;
+  const displayed = displayTotals(c);
 
   const sortedRequests = sortedRows(requests, 'humanRequests', (g, key) => {
     switch (key) {
@@ -648,16 +740,6 @@ function renderDetail() {
   });
   const sessionTitle = c.session_title || (requests.find((g) => g.human_request_text) || {}).human_request_text || c.title;
 
-  const totals = `
-    <div class="totals-grid">
-      <div class="tstat total"><div class="tstat-label">Total Tokens</div><div class="tstat-value">${num(fmtTokens(tokens))}</div></div>
-      <div class="tstat"><div class="tstat-label">Fresh input</div><div class="tstat-value">${num(fmtTokens(c.total_input_tokens))}</div></div>
-      <div class="tstat"><div class="tstat-label">Output</div><div class="tstat-value">${num(fmtTokens(c.total_output_tokens))}</div></div>
-      <div class="tstat"><div class="tstat-label">Cache read</div><div class="tstat-value">${num(fmtTokens(c.total_cache_read_tokens))}</div></div>
-      <div class="tstat"><div class="tstat-label">Cache write</div><div class="tstat-value">${num(fmtTokens(c.total_cache_write_tokens))}</div></div>
-      <div class="tstat estimated-cost"><div class="tstat-label">Estimated cost</div><div class="tstat-value">${num(fmtEstimatedCost(c.total_estimated_cost_usd))}</div></div>
-    </div>`;
-
   const requestHotThreshold = hotEstimatedCostThreshold(requests, 1);
   const rows = sortedRequests.map((g) => {
     const chronologicalIndex = requests.indexOf(g);
@@ -668,7 +750,7 @@ function renderDetail() {
     const latestContextTokens = latestLlmCall ? contextTokensForLlmCall(latestLlmCall) : 0;
     const totalTokens = totalTokensForGroup(g);
     const hot = isFinite(requestHotThreshold) && g.estimated_cost_usd >= requestHotThreshold && g.estimated_cost_usd > 0;
-    return `<tr class="request-row ${hot ? 'hot' : ''}" data-request-key="${esc(g.key)}" tabindex="0" role="button" aria-label="Open LLM calls for human request ${requestNumber(g, chronologicalIndex)}">
+    return `<tr class="request-row ${hot ? 'hot' : ''}" data-request-key="${esc(g.key)}" tabindex="0" role="button" aria-label="Open LLM calls for ${requestLabel.toLowerCase()} ${requestNumber(g, chronologicalIndex)}">
       <td class="l">${requestNumber(g, chronologicalIndex)}</td>
       <td class="l ts-cell">${fmtDate(g.started_at)}</td>
       <td class="l request-cell" title="${esc(requestFull)}">${esc(requestShort) || '<span class="dim">—</span>'}</td>
@@ -686,29 +768,30 @@ function renderDetail() {
   el.innerHTML = `
     <div class="detail-header">
       <h2>Session</h2>
-      <div class="prompt-title">Initial session prompt</div>
+      <div class="prompt-title">${c.is_subagent ? 'Initial subagent task' : 'Initial session prompt'}</div>
       <div class="session-title-card" title="${esc(sessionTitle)}">
         <div class="session-title-text">${esc(sessionTitle)}</div>
       </div>
       <div class="detail-sub">
-        <span class="badge ${srcClass(c.source)}">${srcLabel(c.source)}</span>
+        ${sessionBadges(c, false, false)}
         <span>${esc(c.project)}</span>
-        <span>·</span><span>${num(c.human_request_count || requests.length)} human requests</span>
-        <span>·</span><span>${num(c.llm_call_count)} LLM calls</span>
-        <span>·</span><span>${num(fmtDateShort(c.started_at))} → ${num(fmtDateShort(c.last_active_at))}</span>
+        <span>·</span><span>${num(c.human_request_count || requests.length)} ${c.is_subagent ? 'subagent tasks' : 'human requests'}</span>
+        ${subagentCount && !c.is_subagent ? `<span>·</span><span>${num(subagentCount)} subagents</span>` : ''}
+        <span>·</span><span>${num(displayed.llm_call_count)} LLM calls</span>
+        <span>·</span><span>${num(fmtDateShort(c.started_at))} → ${num(fmtDateShort(displayed.last_active_at))}</span>
       </div>
     </div>
-    ${totals}
+    ${sessionStats(c)}
     <div class="requests-wrap">
       <table class="requests">
         <thead><tr>
-          <th class="l">#</th>${sortHeader('humanRequests', 'time', 'Time', 'l')}<th class="l">Human request</th>${sortHeader('humanRequests', 'llmCalls', 'LLM calls')}
+          <th class="l">#</th>${sortHeader('humanRequests', 'time', 'Time', 'l')}<th class="l">${requestLabel}</th>${sortHeader('humanRequests', 'llmCalls', 'LLM calls')}
           <th>Context</th>${sortHeader('humanRequests', 'inputTokens', 'Fresh input')}${sortHeader('humanRequests', 'cacheReadTokens', 'Cache R')}${sortHeader('humanRequests', 'cacheWriteTokens', 'Cache W')}${sortHeader('humanRequests', 'outputTokens', 'Output')}${sortHeader('humanRequests', 'totalTokens', 'Total tokens')}${sortHeader('humanRequests', 'estimatedCost', 'Estimated cost')}
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div class="legend-note">Click a human request to inspect the individual LLM calls that it triggered. Rows highlighted in red are the highest-cost human requests.</div>`;
+    <div class="legend-note">Click a ${requestLabel.toLowerCase()} to inspect the individual LLM calls that it triggered. Rows highlighted in red are the highest-cost ${requestLabel.toLowerCase()}s.</div>`;
 
   bindSortButtons(el);
 
@@ -765,11 +848,14 @@ function openRequestDialog(key) {
   if (!group) return;
 
   state.activeRequestKey = key;
+  const session = state.llmCallsCache.session || {};
+  const requestLabel = sessionRequestLabel(session);
   const dialog = ensureRequestDialog();
   const wasHidden = dialog.hidden;
   const body = dialog.querySelector('#requestDialogBody');
   const title = dialog.querySelector('#requestDialogTitle');
   const model = dialog.querySelector('#requestDialogModel');
+  const kicker = dialog.querySelector('.dialog-kicker');
   const chronologicalIndex = groups.indexOf(group);
   const threshold = hotEstimatedCostThreshold(group.calls, 5);
   const request = group.human_request_full_text || group.human_request_text || '';
@@ -778,6 +864,7 @@ function openRequestDialog(key) {
 
   title.innerHTML = `Request ${num(requestNumber(group, chronologicalIndex))}`;
   model.textContent = modelSummary(group.calls);
+  if (kicker) kicker.textContent = requestLabel;
 
   const sortedCalls = sortedRows(group.calls, 'llmCalls', (t, key) => {
     switch (key) {
@@ -819,8 +906,8 @@ function openRequestDialog(key) {
   }).join('');
 
   body.innerHTML = `
-    <div class="prompt-title">Request prompt</div>
-    <div class="request-full" title="${esc(request)}"><div class="request-full-text">${esc(request) || '<span class="dim">No human request text captured.</span>'}</div></div>
+    <div class="prompt-title">${requestLabel} prompt</div>
+    <div class="request-full" title="${esc(request)}"><div class="request-full-text">${esc(request) || `<span class="dim">No ${requestLabel.toLowerCase()} text captured.</span>`}</div></div>
     <div class="dialog-stats">
       <div class="tstat"><div class="tstat-label">LLM calls</div><div class="tstat-value">${num(fmtTokensFull(group.calls.length))}</div></div>
       <div class="tstat"><div class="tstat-label">Fresh input</div><div class="tstat-value">${num(fmtTokens(group.input_tokens))}</div></div>
@@ -852,7 +939,7 @@ function openRequestDialog(key) {
         <tbody>${callRows}</tbody>
       </table>
     </div>
-    <div class="legend-note">Rows highlighted in red are the top ${num('20%')} most expensive LLM calls for this human request.</div>`;
+    <div class="legend-note">Rows highlighted in red are the top ${num('20%')} most expensive LLM calls for this ${requestLabel.toLowerCase()}.</div>`;
 
   dialog.hidden = false;
   document.body.classList.add('modal-open');

@@ -167,6 +167,82 @@ test('Claude parser emits interrupted requests as zero-call Human requests and i
   assert.equal(meta.human_requests.length, 2);
 });
 
+test('Claude parser marks sidechain files as parented subagent sessions', () => {
+  const parentFile = writeJsonl('claude-parent.jsonl', [
+    {
+      type: 'user',
+      timestamp: '2026-06-24T10:00:00.000Z',
+      sessionId: 'claude-parent',
+      cwd: '/tmp/token-police',
+      uuid: 'parent-user',
+      message: { content: [{ type: 'text', text: 'Build the dashboard.' }] },
+    },
+    {
+      type: 'assistant',
+      timestamp: '2026-06-24T10:00:01.000Z',
+      sessionId: 'claude-parent',
+      uuid: 'parent-assistant',
+      message: {
+        id: 'parent-msg',
+        model: 'claude-opus-4-8',
+        stop_reason: 'end_turn',
+        content: [{ type: 'text', text: 'Parent work.' }],
+        usage: { input_tokens: 100, output_tokens: 10, cache_read_input_tokens: 20, cache_creation_input_tokens: 0 },
+      },
+    },
+  ]);
+  const childFile = writeJsonl('agent-claude-child.jsonl', [
+    {
+      type: 'user',
+      timestamp: '2026-06-24T10:00:02.000Z',
+      sessionId: 'claude-parent',
+      cwd: '/tmp/token-police',
+      uuid: 'child-user',
+      isSidechain: true,
+      agentId: 'agent-raw',
+      message: { content: [{ type: 'text', text: 'Inspect the design docs.' }] },
+    },
+    {
+      type: 'assistant',
+      timestamp: '2026-06-24T10:00:03.000Z',
+      sessionId: 'claude-parent',
+      uuid: 'child-assistant',
+      isSidechain: true,
+      agentId: 'agent-raw',
+      attributionAgent: 'general-purpose',
+      message: {
+        id: 'child-msg',
+        model: 'claude-opus-4-8',
+        stop_reason: 'end_turn',
+        content: [{ type: 'text', text: 'Child work.' }],
+        usage: { input_tokens: 50, output_tokens: 5, cache_read_input_tokens: 10, cache_creation_input_tokens: 0 },
+      },
+    },
+  ]);
+
+  const child = parseClaudeFile(childFile);
+  assert.equal(child.is_subagent, true);
+  assert.equal(child.parent_session_id, 'claude-parent');
+  assert.equal(child.subagent_kind, 'sidechain');
+  assert.equal(child.subagent_name, 'general-purpose');
+
+  const store = new Store({
+    estimatedCost() { return 0; },
+    contextWindow() { return 200000; },
+  });
+  store.upsertFromFile('claude-code', parentFile);
+  store.upsertFromFile('claude-code', childFile);
+
+  const rows = store.listSessions();
+  assert.equal(rows[0].id, 'claude-parent');
+  assert.equal(rows[1].id, 'agent-claude-child');
+  assert.equal(rows[1].is_subagent, true);
+  assert.equal(rows[1].parent_session_id, 'claude-parent');
+  assert.equal(rows[0].subagent_session_count, 1);
+  assert.equal(rows[0].inclusive_total_input_tokens, 150);
+  assert.equal(rows[0].inclusive_total_cache_read_tokens, 30);
+});
+
 test('Codex parser attributes each response\'s activity to the call its token_count creates', () => {
   // Real Codex ordering: a response emits reasoning/agent_message/function_call/
   // function_call_output FIRST, then the token_count reporting that response's
@@ -301,6 +377,119 @@ test('Codex parser emits an aborted turn as a zero-call Human request', () => {
   const meta = store.getSessionMeta(session.id);
   assert.equal(meta.human_request_count, 2);
   assert.equal(meta.human_requests.length, 2);
+});
+
+test('Codex subagent sessions are grouped under their parent with inclusive totals', () => {
+  const parentFile = writeJsonl('codex-parent.jsonl', [
+    {
+      type: 'session_meta',
+      timestamp: '2026-06-24T10:00:00.000Z',
+      payload: {
+        id: 'parent-session',
+        session_id: 'parent-session',
+        cwd: '/tmp/token-police',
+        thread_source: 'user',
+        source: 'vscode',
+      },
+    },
+    { type: 'event_msg', timestamp: '2026-06-24T10:00:01.000Z', payload: { type: 'user_message', message: 'Build the dashboard.' } },
+    {
+      type: 'event_msg',
+      timestamp: '2026-06-24T10:00:02.000Z',
+      payload: {
+        type: 'token_count',
+        info: {
+          total_token_usage: { input_tokens: 100, cached_input_tokens: 20, output_tokens: 10, total_tokens: 110 },
+          last_token_usage: { input_tokens: 100, cached_input_tokens: 20, output_tokens: 10, total_tokens: 110 },
+        },
+      },
+    },
+  ]);
+  const childFile = writeJsonl('codex-child.jsonl', [
+    {
+      type: 'session_meta',
+      timestamp: '2026-06-24T10:00:03.000Z',
+      payload: {
+        id: 'child-session',
+        session_id: 'parent-session',
+        cwd: '/tmp/token-police',
+        thread_source: 'subagent',
+        source: {
+          subagent: {
+            thread_spawn: {
+              parent_thread_id: 'parent-session',
+              depth: 1,
+              agent_nickname: 'Ohm',
+              agent_role: 'explorer',
+            },
+          },
+        },
+      },
+    },
+    { type: 'event_msg', timestamp: '2026-06-24T10:00:04.000Z', payload: { type: 'user_message', message: 'Inspect the design docs.' } },
+    {
+      type: 'event_msg',
+      timestamp: '2026-06-24T10:00:05.000Z',
+      payload: {
+        type: 'token_count',
+        info: {
+          total_token_usage: { input_tokens: 50, cached_input_tokens: 10, output_tokens: 5, total_tokens: 55 },
+          last_token_usage: { input_tokens: 50, cached_input_tokens: 10, output_tokens: 5, total_tokens: 55 },
+        },
+      },
+    },
+  ]);
+
+  const child = parseCodexFile(childFile);
+  assert.equal(child.is_subagent, true);
+  assert.equal(child.parent_session_id, 'parent-session');
+  assert.equal(child.subagent_name, 'Ohm');
+  assert.equal(child.subagent_role, 'explorer');
+  assert.equal(child.subagent_depth, 1);
+
+  const store = new Store({
+    estimatedCost(_model, tokens) {
+      return (
+        (tokens.input_tokens || 0) +
+        (tokens.output_tokens || 0) +
+        (tokens.cache_read_tokens || 0) +
+        (tokens.cache_write_tokens || 0)
+      ) / 100;
+    },
+    contextWindow() { return 200000; },
+  });
+  store.upsertFromFile('codex', parentFile);
+  store.upsertFromFile('codex', childFile);
+
+  const rows = store.listSessions();
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].id, 'parent-session');
+  assert.equal(rows[1].id, 'child-session');
+  assert.equal(rows[1].is_subagent, true);
+  assert.equal(rows[1].parent_session_id, 'parent-session');
+
+  assert.equal(rows[0].subagent_session_count, 1);
+  assert.equal(rows[0].total_input_tokens, 80);
+  assert.equal(rows[0].inclusive_total_input_tokens, 120);
+  assert.equal(rows[0].inclusive_total_cache_read_tokens, 30);
+  assert.equal(rows[0].inclusive_total_output_tokens, 15);
+  assert.equal(rows[0].inclusive_llm_call_count, 2);
+  assert.ok(Math.abs(rows[0].inclusive_total_estimated_cost_usd - 1.65) < 0.000001);
+
+  const parentMeta = store.getSessionMeta('parent-session');
+  assert.equal(parentMeta.subagent_sessions.length, 1);
+  assert.equal(parentMeta.subagent_sessions[0].id, 'child-session');
+  assert.equal(parentMeta.subagent_sessions[0].subagent_label, 'Ohm · explorer');
+
+  const childMeta = store.getSessionMeta('child-session');
+  assert.equal(childMeta.subagent_sessions.length, 0);
+  assert.equal(childMeta.inclusive_total_input_tokens, childMeta.total_input_tokens);
+
+  const summary = store.summary();
+  assert.equal(summary.totals.session_count, 2);
+  assert.equal(summary.totals.input_tokens, 120);
+  assert.equal(summary.totals.cache_read_tokens, 30);
+  assert.equal(summary.totals.output_tokens, 15);
 });
 
 test('Store projects insight fields and derives cost drivers', () => {

@@ -161,6 +161,14 @@ function parseCodexFile(filePath) {
   let title = '';
   let cwd = '';
   let sessionId = '';
+  let threadSessionId = '';
+  let threadSource = '';
+  let isSubagent = false;
+  let parentSessionId = '';
+  let subagentKind = '';
+  let subagentName = '';
+  let subagentRole = '';
+  let subagentDepth = 0;
   let startedAt = null;
   let lastActiveAt = null;
   let curModel = null;
@@ -192,6 +200,26 @@ function parseCodexFile(filePath) {
       const p = d.payload || {};
       if (p.cwd) cwd = p.cwd;
       if (p.id) sessionId = p.id;
+      if (p.session_id) threadSessionId = p.session_id;
+      if (p.thread_source) threadSource = p.thread_source;
+      if (threadSource === 'subagent') isSubagent = true;
+      if (p.source && typeof p.source === 'object' && p.source.subagent) {
+        isSubagent = true;
+        const subagent = p.source.subagent;
+        if (subagent.thread_spawn) {
+          const spawn = subagent.thread_spawn;
+          subagentKind = 'thread_spawn';
+          parentSessionId = spawn.parent_thread_id || parentSessionId;
+          subagentName = spawn.agent_nickname || '';
+          subagentRole = spawn.agent_role || '';
+          subagentDepth = spawn.depth || 0;
+        } else if (subagent.other) {
+          subagentKind = subagent.other;
+        }
+      }
+      if (isSubagent && !parentSessionId && threadSessionId && threadSessionId !== sessionId) {
+        parentSessionId = threadSessionId;
+      }
       continue;
     }
 
@@ -326,6 +354,14 @@ function parseCodexFile(filePath) {
     title: title || '(no human request)',
     cwd,
     sessionId,
+    thread_session_id: threadSessionId,
+    thread_source: threadSource || (isSubagent ? 'subagent' : 'user'),
+    is_subagent: isSubagent,
+    parent_session_id: parentSessionId,
+    subagent_kind: subagentKind,
+    subagent_name: subagentName,
+    subagent_role: subagentRole,
+    subagent_depth: subagentDepth,
     filePath,
     started_at: startedAt,
     last_active_at: lastActiveAt,
