@@ -11,6 +11,7 @@ const { parseClaudeFile } = require('./parseClaude');
 const { parseCodexFile } = require('./parseCodex');
 
 const TITLE_MAX = 60;
+const SUMMARY_DAY_COUNT = 30;
 
 function truncate(str, n) {
   if (!str) return str;
@@ -314,86 +315,28 @@ class Store {
 
   /** Aggregate totals, per-source totals, 30-day daily breakdown, top 5. */
   summary() {
-    const totals = {
-      input_tokens: 0,
-      output_tokens: 0,
-      cache_read_tokens: 0,
-      cache_write_tokens: 0,
-      estimated_cost_usd: 0,
-      llm_call_count: 0,
-    };
+    const totals = emptyTotals();
     const bySource = {
       'claude-code': { ...emptyTotals(), session_count: 0 },
       codex: { ...emptyTotals(), session_count: 0 },
     };
-
-    // Build the last-30-days window (local calendar days, oldest first).
-    const days = [];
-    const dayIndex = new Map();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const bucket = {
-        date: key,
-        'claude-code': { tokens: 0, estimated_cost_usd: 0 },
-        codex: { tokens: 0, estimated_cost_usd: 0 },
-      };
-      days.push(bucket);
-      dayIndex.set(key, bucket);
-    }
+    const { days, dayIndex } = buildDailyBuckets();
 
     for (const session of this.sessions.values()) {
       const src = session.source;
       if (bySource[src]) bySource[src].session_count += 1;
 
       for (const llmCall of session.llm_calls) {
-        const callTokens =
-          llmCall.input_tokens + llmCall.output_tokens + llmCall.cache_read_tokens + llmCall.cache_write_tokens;
-
-        totals.input_tokens += llmCall.input_tokens;
-        totals.output_tokens += llmCall.output_tokens;
-        totals.cache_read_tokens += llmCall.cache_read_tokens;
-        totals.cache_write_tokens += llmCall.cache_write_tokens;
-        totals.estimated_cost_usd += llmCall.estimated_cost_usd;
-        totals.llm_call_count += 1;
-
-        if (bySource[src]) {
-          const b = bySource[src];
-          b.input_tokens += llmCall.input_tokens;
-          b.output_tokens += llmCall.output_tokens;
-          b.cache_read_tokens += llmCall.cache_read_tokens;
-          b.cache_write_tokens += llmCall.cache_write_tokens;
-          b.estimated_cost_usd += llmCall.estimated_cost_usd;
-          b.llm_call_count += 1;
-        }
-
-        const key = dayKey(llmCall.timestamp);
-        const bucket = key && dayIndex.get(key);
-        if (bucket && bucket[src]) {
-          bucket[src].tokens += callTokens;
-          bucket[src].estimated_cost_usd += llmCall.estimated_cost_usd;
-        }
+        addLlmCallTotals(totals, llmCall);
+        if (bySource[src]) addLlmCallTotals(bySource[src], llmCall);
+        addDailyLlmCall(dayIndex, src, llmCall);
       }
     }
 
     const top = [...this.sessions.values()]
       .sort((a, b) => b.total_estimated_cost_usd - a.total_estimated_cost_usd)
       .slice(0, 5)
-      .map((session) => ({
-        id: session.id,
-        source: session.source,
-        project: session.project,
-        title: truncate(session.title, TITLE_MAX),
-        total_estimated_cost_usd: session.total_estimated_cost_usd,
-        total_tokens:
-          session.total_input_tokens +
-          session.total_output_tokens +
-          session.total_cache_read_tokens +
-          session.total_cache_write_tokens,
-      }));
+      .map(topSessionItem);
 
     return {
       totals: { ...totals, session_count: this.sessions.size },
@@ -412,6 +355,69 @@ function emptyTotals() {
     cache_write_tokens: 0,
     estimated_cost_usd: 0,
     llm_call_count: 0,
+  };
+}
+
+function llmCallTokenTotal(llmCall) {
+  return (
+    llmCall.input_tokens +
+    llmCall.output_tokens +
+    llmCall.cache_read_tokens +
+    llmCall.cache_write_tokens
+  );
+}
+
+function addLlmCallTotals(totals, llmCall) {
+  totals.input_tokens += llmCall.input_tokens;
+  totals.output_tokens += llmCall.output_tokens;
+  totals.cache_read_tokens += llmCall.cache_read_tokens;
+  totals.cache_write_tokens += llmCall.cache_write_tokens;
+  totals.estimated_cost_usd += llmCall.estimated_cost_usd;
+  totals.llm_call_count += 1;
+}
+
+function buildDailyBuckets(dayCount = SUMMARY_DAY_COUNT) {
+  const days = [];
+  const dayIndex = new Map();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let i = dayCount - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = dayKey(d);
+    const bucket = {
+      date: key,
+      'claude-code': { tokens: 0, estimated_cost_usd: 0 },
+      codex: { tokens: 0, estimated_cost_usd: 0 },
+    };
+    days.push(bucket);
+    dayIndex.set(key, bucket);
+  }
+
+  return { days, dayIndex };
+}
+
+function addDailyLlmCall(dayIndex, source, llmCall) {
+  const key = dayKey(llmCall.timestamp);
+  const bucket = key && dayIndex.get(key);
+  if (!bucket || !bucket[source]) return;
+  bucket[source].tokens += llmCallTokenTotal(llmCall);
+  bucket[source].estimated_cost_usd += llmCall.estimated_cost_usd;
+}
+
+function topSessionItem(session) {
+  return {
+    id: session.id,
+    source: session.source,
+    project: session.project,
+    title: truncate(session.title, TITLE_MAX),
+    total_estimated_cost_usd: session.total_estimated_cost_usd,
+    total_tokens:
+      session.total_input_tokens +
+      session.total_output_tokens +
+      session.total_cache_read_tokens +
+      session.total_cache_write_tokens,
   };
 }
 

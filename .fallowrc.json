@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "server.js",
+    "start.js",
+    "public/index.html",
+    "public/app.js",
+    "public/styles.css",
+    "test/llm-insights.test.js",
+    "design/handoff/themes.css"
+  ]
+}

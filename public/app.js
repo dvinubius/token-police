@@ -7,18 +7,6 @@ const REFRESH_MS = 30000;
 const THEME_STORAGE_KEY = 'token-police-theme';
 const THEMES = new Set(['graphite', 'light']);
 
-const FALLBACK_CONTEXT_WINDOWS = {
-  'claude-sonnet-4-5': 200000,
-  'claude-sonnet-4-6': 200000,
-  'claude-opus-4-8': 200000,
-  'claude-opus-4-1': 200000,
-  'claude-haiku-4-5': 200000,
-  'gpt-5': 400000,
-  'gpt-5-codex': 400000,
-  'gpt-5.1-codex': 400000,
-  'gpt-5.5': 400000,
-};
-
 const LIST_PAGE = 20; // session-list render window step (initial size and scroll increment)
 
 const state = {
@@ -127,8 +115,7 @@ function srcLabel(s) { return s === 'codex' ? 'Codex' : 'CC'; }
 function srcFullLabel(s) { return s === 'codex' ? 'Codex' : 'Claude Code'; }
 function srcClass(s) { return s === 'codex' ? 'codex' : 'cc'; }
 function sessionRequestLabel(c) { return c && c.is_subagent ? 'Subagent task' : 'Human request'; }
-function displayTotals(c) {
-  const inclusive = !c.is_subagent && (c.subagent_session_count || 0) > 0;
+function sessionTotals(c, inclusive = false) {
   return {
     input_tokens: inclusive ? c.inclusive_total_input_tokens : c.total_input_tokens,
     output_tokens: inclusive ? c.inclusive_total_output_tokens : c.total_output_tokens,
@@ -138,6 +125,9 @@ function displayTotals(c) {
     llm_call_count: inclusive ? c.inclusive_llm_call_count : c.llm_call_count,
     last_active_at: inclusive ? c.inclusive_last_active_at : c.last_active_at,
   };
+}
+function displayTotals(c) {
+  return sessionTotals(c, !c.is_subagent && (c.subagent_session_count || 0) > 0);
 }
 function totalTokensForTotals(t) {
   return (t.input_tokens || 0) + (t.output_tokens || 0) +
@@ -176,15 +166,7 @@ function statsGrid(t, options = {}) {
   </div>`;
 }
 
-function statValues(c, inclusive = false) {
-  return {
-    input_tokens: inclusive ? c.inclusive_total_input_tokens : c.total_input_tokens,
-    output_tokens: inclusive ? c.inclusive_total_output_tokens : c.total_output_tokens,
-    cache_read_tokens: inclusive ? c.inclusive_total_cache_read_tokens : c.total_cache_read_tokens,
-    cache_write_tokens: inclusive ? c.inclusive_total_cache_write_tokens : c.total_cache_write_tokens,
-    estimated_cost_usd: inclusive ? c.inclusive_total_estimated_cost_usd : c.total_estimated_cost_usd,
-  };
-}
+function statValues(c, inclusive = false) { return sessionTotals(c, inclusive); }
 
 function statsRow(label, values, className = '') {
   const isTotal = className.split(/\s+/).includes('total-row');
@@ -217,21 +199,6 @@ function detailField(label, value, title = '') {
   return `<div class="insight-field"><div class="insight-label">${esc(label)}</div><div class="insight-value"${titleAttr}>${value ? esc(value) : '<span class="dim">Not captured</span>'}</div></div>`;
 }
 
-function normalizedModel(model) {
-  return String(model || '').toLowerCase().replace(/^[^/]+\//, '');
-}
-
-function fallbackContextWindow(model) {
-  const m = normalizedModel(model);
-  if (!m || m === '<synthetic>' || m === 'unknown') return 0;
-  if (FALLBACK_CONTEXT_WINDOWS[m]) return FALLBACK_CONTEXT_WINDOWS[m];
-  if (m.includes('opus')) return FALLBACK_CONTEXT_WINDOWS['claude-opus-4-8'];
-  if (m.includes('haiku')) return FALLBACK_CONTEXT_WINDOWS['claude-haiku-4-5'];
-  if (m.includes('sonnet')) return FALLBACK_CONTEXT_WINDOWS['claude-sonnet-4-5'];
-  if (m.includes('codex') || m.startsWith('gpt-5')) return FALLBACK_CONTEXT_WINDOWS['gpt-5-codex'];
-  return FALLBACK_CONTEXT_WINDOWS['claude-sonnet-4-5'];
-}
-
 function contextTokensForLlmCall(t) {
   return t.context_input_tokens != null
     ? t.context_input_tokens
@@ -239,7 +206,7 @@ function contextTokensForLlmCall(t) {
 }
 
 function contextWindowForLlmCall(t) {
-  return t.model_context_window_tokens || fallbackContextWindow(t.model);
+  return t.model_context_window_tokens || 0;
 }
 
 function contextPctForLlmCall(t) {
@@ -521,77 +488,94 @@ function visibleSessionRows(rows) {
   });
 }
 
+function renderListMeta(filtered, visible) {
+  const totalEstimatedCost = filtered.reduce((s, c) => s + c.total_estimated_cost_usd, 0);
+  document.getElementById('listMeta').innerHTML =
+    `${num(visible.length)} visible / ${num(filtered.length)} session${filtered.length === 1 ? '' : 's'} · ${num(fmtEstimatedCost(totalEstimatedCost))}`;
+}
+
+function renderEmptyList(wrap) {
+  const empty = document.createElement('div');
+  empty.className = 'dim';
+  empty.style.padding = '16px';
+  empty.textContent = 'No sessions match the current filters.';
+  wrap.appendChild(empty);
+}
+
+function toggleSubagentRows(id, expanded) {
+  if (expanded) state.expandedSessionIds.delete(id);
+  else state.expandedSessionIds.add(id);
+  renderList();
+}
+
+function sessionRow(c) {
+  const displayed = displayTotals(c);
+  const tokens = totalTokensForTotals(displayed);
+  const subagentCount = c.subagent_session_count || 0;
+  const expanded = state.expandedSessionIds.has(c.id);
+  const row = document.createElement('div');
+  row.className = 'session-row' + (c.is_subagent ? ' subagent-row' : '') + (subagentCount && !c.is_subagent ? ' has-subagents' : '') + (c.id === state.selectedId ? ' selected' : '');
+  if (subagentCount && !c.is_subagent) row.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  if (c.is_subagent) row.style.setProperty('--subagent-indent', `${Math.max(1, c.subagent_depth || 1) * 18}px`);
+  row.innerHTML =
+    sessionBadges(c, expanded) +
+    `<div class="session-main">` +
+      `<div class="session-title">${esc(c.title)}</div>` +
+      `<div class="session-sub"><span class="proj">${esc(c.project)}</span><span>${num(c.human_request_count || 0)} ${c.is_subagent ? 'tasks' : 'human req'}</span>${subagentCount && !c.is_subagent ? `<span>${num(subagentCount)} subagents</span>` : ''}<span>${num(displayed.llm_call_count)} LLM calls</span><span>${num(fmtTokens(tokens))} tok</span></div>` +
+    `</div>` +
+    `<div class="session-right">` +
+      `<div class="session-estimated-cost">${num(fmtEstimatedCost(displayed.estimated_cost_usd))}</div>` +
+      `<div class="session-meta">${relDay(displayed.last_active_at)}</div>` +
+    `</div>`;
+  row.onclick = () => selectSession(c.id);
+  const toggle = row.querySelector('.session-chevron');
+  if (toggle) {
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleSubagentRows(c.id, expanded);
+    });
+  }
+  return row;
+}
+
+function appendListSentinel(wrap) {
+  const sentinel = document.createElement('div');
+  sentinel.className = 'list-sentinel';
+  wrap.appendChild(sentinel);
+  if (!listObserver) {
+    listObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          state.listLimit += LIST_PAGE;
+          renderList();
+        }
+      },
+      { root: wrap, rootMargin: '200px' }
+    );
+  }
+  listObserver.observe(sentinel);
+}
+
 function renderList() {
   const wrap = document.getElementById('sessionList');
   const filtered = applyFilters(state.sessions);
   const visible = visibleSessionRows(filtered);
-  const totalEstimatedCost = filtered.reduce((s, c) => s + c.total_estimated_cost_usd, 0);
-  document.getElementById('listMeta').innerHTML =
-    `${num(visible.length)} visible / ${num(filtered.length)} session${filtered.length === 1 ? '' : 's'} · ${num(fmtEstimatedCost(totalEstimatedCost))}`;
+  renderListMeta(filtered, visible);
 
   if (listObserver) listObserver.disconnect();
   wrap.replaceChildren();
   if (!visible.length) {
-    const empty = document.createElement('div');
-    empty.className = 'dim';
-    empty.style.padding = '16px';
-    empty.textContent = 'No sessions match the current filters.';
-    wrap.appendChild(empty);
+    renderEmptyList(wrap);
     return;
   }
 
   const limit = Math.min(state.listLimit, visible.length);
   for (let i = 0; i < limit; i++) {
-    const c = visible[i];
-    const displayed = displayTotals(c);
-    const tokens = totalTokensForTotals(displayed);
-    const subagentCount = c.subagent_session_count || 0;
-    const expanded = state.expandedSessionIds.has(c.id);
-    const row = document.createElement('div');
-    row.className = 'session-row' + (c.is_subagent ? ' subagent-row' : '') + (subagentCount && !c.is_subagent ? ' has-subagents' : '') + (c.id === state.selectedId ? ' selected' : '');
-    if (subagentCount && !c.is_subagent) row.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    if (c.is_subagent) row.style.setProperty('--subagent-indent', `${Math.max(1, c.subagent_depth || 1) * 18}px`);
-    row.innerHTML =
-      sessionBadges(c, expanded) +
-      `<div class="session-main">` +
-        `<div class="session-title">${esc(c.title)}</div>` +
-        `<div class="session-sub"><span class="proj">${esc(c.project)}</span><span>${num(c.human_request_count || 0)} ${c.is_subagent ? 'tasks' : 'human req'}</span>${subagentCount && !c.is_subagent ? `<span>${num(subagentCount)} subagents</span>` : ''}<span>${num(displayed.llm_call_count)} LLM calls</span><span>${num(fmtTokens(tokens))} tok</span></div>` +
-      `</div>` +
-      `<div class="session-right">` +
-        `<div class="session-estimated-cost">${num(fmtEstimatedCost(displayed.estimated_cost_usd))}</div>` +
-        `<div class="session-meta">${relDay(displayed.last_active_at)}</div>` +
-      `</div>`;
-    row.onclick = () => selectSession(c.id);
-    const toggle = row.querySelector('.session-chevron');
-    if (toggle) {
-      toggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (expanded) state.expandedSessionIds.delete(c.id);
-        else state.expandedSessionIds.add(c.id);
-        renderList();
-      });
-    }
-    wrap.appendChild(row);
+    wrap.appendChild(sessionRow(visible[i]));
   }
 
   // Infinite scroll: a sentinel below the window grows it as it nears view.
-  if (limit < visible.length) {
-    const sentinel = document.createElement('div');
-    sentinel.className = 'list-sentinel';
-    wrap.appendChild(sentinel);
-    if (!listObserver) {
-      listObserver = new IntersectionObserver(
-        (entries) => {
-          if (entries.some((e) => e.isIntersecting)) {
-            state.listLimit += LIST_PAGE;
-            renderList();
-          }
-        },
-        { root: wrap, rootMargin: '200px' }
-      );
-    }
-    listObserver.observe(sentinel);
-  }
+  if (limit < visible.length) appendListSentinel(wrap);
 }
 
 /* ---------- detail view ---------- */

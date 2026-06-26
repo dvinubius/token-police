@@ -114,4 +114,4 @@ class Watcher {
   }
 }
 
-module.exports = { Watcher, findJsonlFiles };
+module.exports = { Watcher };

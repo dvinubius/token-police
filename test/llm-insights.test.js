@@ -17,6 +17,25 @@ function writeJsonl(name, records) {
   return file;
 }
 
+function localDayKey(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function tokenSumPricing() {
+  return {
+    estimatedCost(_model, tokens) {
+      return (
+        (tokens.input_tokens || 0) +
+        (tokens.output_tokens || 0) +
+        (tokens.cache_read_tokens || 0) +
+        (tokens.cache_write_tokens || 0)
+      ) / 100;
+    },
+    contextWindow() { return 200000; },
+  };
+}
+
 test('Claude parser captures full Human request text and LLM-call insights', () => {
   const request = 'Please inspect the parser and update the dialog with richer per-call insight fields. '.repeat(4);
   const file = writeJsonl('claude.jsonl', [
@@ -447,17 +466,7 @@ test('Codex subagent sessions are grouped under their parent with inclusive tota
   assert.equal(child.subagent_role, 'explorer');
   assert.equal(child.subagent_depth, 1);
 
-  const store = new Store({
-    estimatedCost(_model, tokens) {
-      return (
-        (tokens.input_tokens || 0) +
-        (tokens.output_tokens || 0) +
-        (tokens.cache_read_tokens || 0) +
-        (tokens.cache_write_tokens || 0)
-      ) / 100;
-    },
-    contextWindow() { return 200000; },
-  });
+  const store = new Store(tokenSumPricing());
   store.upsertFromFile('codex', parentFile);
   store.upsertFromFile('codex', childFile);
 
@@ -537,4 +546,73 @@ test('Store projects insight fields and derives cost drivers', () => {
   assert.match(call.cost_driver, /large context window use/);
   assert.match(call.cost_driver, /high output/);
   assert.equal(call.reasoning_output_tokens, 3000);
+});
+
+test('Store summary aggregates totals, sources, daily buckets, and top sessions', () => {
+  const store = new Store(tokenSumPricing());
+  const now = new Date().toISOString();
+  const sessions = [
+    {
+      id: 'claude-summary',
+      source: 'claude-code',
+      project: 'token-police',
+      title: 'Claude summary session',
+      started_at: now,
+      last_active_at: now,
+      llm_calls: [{
+        llm_call_index: 0,
+        human_request_index: 0,
+        human_request_text: 'Summarize Claude',
+        timestamp: now,
+        model: 'claude-sonnet-4-5',
+        input_tokens: 100,
+        output_tokens: 20,
+        cache_read_tokens: 30,
+        cache_write_tokens: 10,
+      }],
+    },
+    {
+      id: 'codex-summary',
+      source: 'codex',
+      project: 'token-police',
+      title: 'Codex summary session',
+      started_at: now,
+      last_active_at: now,
+      llm_calls: [{
+        llm_call_index: 0,
+        human_request_index: 0,
+        human_request_text: 'Summarize Codex',
+        timestamp: now,
+        model: 'gpt-5-codex',
+        input_tokens: 40,
+        output_tokens: 10,
+        cache_read_tokens: 5,
+        cache_write_tokens: 0,
+      }],
+    },
+  ];
+
+  for (const session of sessions) {
+    store._enrich(session);
+    store.sessions.set(session.id, session);
+  }
+
+  const summary = store.summary();
+  assert.equal(summary.totals.session_count, 2);
+  assert.equal(summary.totals.input_tokens, 140);
+  assert.equal(summary.totals.output_tokens, 30);
+  assert.equal(summary.totals.cache_read_tokens, 35);
+  assert.equal(summary.totals.cache_write_tokens, 10);
+  assert.equal(summary.totals.llm_call_count, 2);
+  assert.equal(summary.by_source['claude-code'].session_count, 1);
+  assert.equal(summary.by_source['claude-code'].input_tokens, 100);
+  assert.equal(summary.by_source.codex.session_count, 1);
+  assert.equal(summary.by_source.codex.input_tokens, 40);
+
+  const todayBucket = summary.daily.find((bucket) => bucket.date === localDayKey(now));
+  assert.ok(todayBucket);
+  assert.equal(todayBucket['claude-code'].tokens, 160);
+  assert.equal(todayBucket.codex.tokens, 55);
+  assert.equal(summary.top_sessions[0].id, 'claude-summary');
+  assert.equal(summary.top_sessions[0].total_tokens, 160);
 });

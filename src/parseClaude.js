@@ -12,8 +12,17 @@
  *   cache_write  = usage.cache_creation_input_tokens
  */
 
-const fs = require('fs');
 const path = require('path');
+const {
+  addHumanRequest,
+  basenameHint,
+  cleanInline,
+  cleanXmlishTitle,
+  commandHint,
+  countByName,
+  timestampedJsonlRecords,
+  truncateText,
+} = require('./parseShared');
 
 const TEXT_PREVIEW_MAX = 220;
 const TOOL_HINT_MAX = 140;
@@ -38,44 +47,7 @@ function isToolResult(content) {
 }
 
 function cleanTitle(text) {
-  return String(text)
-    .replace(/<[^>]+>/g, ' ') // drop xml-ish wrappers (command tags, reminders)
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function cleanInline(text) {
-  return String(text || '').replace(/\s+/g, ' ').trim();
-}
-
-function truncateText(text, n) {
-  const t = cleanInline(text);
-  return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t;
-}
-
-function countByName(names) {
-  const counts = new Map();
-  for (const name of names) {
-    if (!name) continue;
-    counts.set(name, (counts.get(name) || 0) + 1);
-  }
-  return [...counts.entries()]
-    .map(([name, count]) => (count > 1 ? `${name} x${count}` : name))
-    .join(', ');
-}
-
-function basenameHint(value) {
-  if (!value || typeof value !== 'string') return '';
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  return path.basename(trimmed);
-}
-
-function commandHint(command) {
-  if (!command || typeof command !== 'string') return '';
-  const parts = command.trim().split(/\s+/).filter(Boolean);
-  const firstExecutable = parts.find((p) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(p));
-  return firstExecutable ? path.basename(firstExecutable) : '';
+  return cleanXmlishTitle(text); // drop xml-ish wrappers (command tags, reminders)
 }
 
 function toolHint(tool) {
@@ -124,12 +96,7 @@ function toolResultChars(content) {
     .reduce((sum, b) => sum + JSON.stringify(b.content || '').length, 0);
 }
 
-// Cap a Human request to a short preview so storing it per LLM call stays cheap.
 const HUMAN_REQUEST_PREVIEW_MAX = 160;
-function previewText(text) {
-  const t = String(text);
-  return t.length > HUMAN_REQUEST_PREVIEW_MAX ? t.slice(0, HUMAN_REQUEST_PREVIEW_MAX) : t;
-}
 
 // Claude Code writes this synthetic user line when the developer interrupts the
 // agent. It is a system marker, not a Human request, so it must not start a new
@@ -154,9 +121,6 @@ function genuineUserTitle(d) {
 }
 
 function parseClaudeFile(filePath) {
-  const raw = fs.readFileSync(filePath, 'utf8');
-  const lines = raw.split('\n');
-
   const llmCalls = [];
   // Genuine Human requests in chronological order, emitted independently of LLM
   // calls so a request that triggered zero billed calls (e.g. an interrupted
@@ -187,21 +151,11 @@ function parseClaudeFile(filePath) {
   let currentHumanRequestIndex = -1; // increments for each genuine Human request
   let pendingToolResultChars = 0;
 
-  for (const line of lines) {
-    const s = line.trim();
-    if (!s) continue;
-    let d;
-    try {
-      d = JSON.parse(s);
-    } catch {
-      continue; // skip malformed lines
-    }
-
-    const ts = d.timestamp;
-    if (ts) {
-      if (!startedAt || ts < startedAt) startedAt = ts;
-      if (!lastActiveAt || ts > lastActiveAt) lastActiveAt = ts;
-    }
+  for (const item of timestampedJsonlRecords(filePath)) {
+    const d = item.record;
+    const ts = item.timestamp;
+    startedAt = item.startedAt;
+    lastActiveAt = item.lastActiveAt;
     if (d.cwd && !cwd) cwd = d.cwd;
     if (d.sessionId && !sessionId) sessionId = d.sessionId;
     if (d.isSidechain) {
@@ -220,16 +174,12 @@ function parseClaudeFile(filePath) {
 
       const t = genuineUserTitle(d);
       if (t) {
-        currentHumanRequest = previewText(t);
-        currentHumanRequestFull = t;
-        currentHumanRequestIndex += 1;
+        ({
+          humanRequestText: currentHumanRequest,
+          humanRequestFullText: currentHumanRequestFull,
+          humanRequestIndex: currentHumanRequestIndex,
+        } = addHumanRequest(humanRequests, t, ts || lastActiveAt, currentHumanRequestIndex, HUMAN_REQUEST_PREVIEW_MAX));
         if (!title) title = t;
-        humanRequests.push({
-          human_request_index: currentHumanRequestIndex,
-          human_request_text: currentHumanRequest,
-          human_request_full_text: currentHumanRequestFull,
-          timestamp: ts || lastActiveAt,
-        });
       }
     }
 

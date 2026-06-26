@@ -1,5 +1,5 @@
 # Notes
 
-Clarify Stats in case of subagent usage (subagents appear as separate sessions) - need to display in a hierarchy in the sessions list
+Dealing with nested subagents (depth > 2?). No, it's overkill for this app.
 
 ## Svelte / React port?
