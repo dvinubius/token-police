@@ -22,17 +22,22 @@
 
 ## Agent Workflow
 
-Only load routed context needed for the work.
-
-Avoid expensive or risky work without confirmation.
-
-Stop and ask before:
-
-- running destructive operations, deployments, production actions, unusually
-  broad verification, or expensive tool calls;
-- creating commits.
+- Only load routed context needed for the work.
+- Don’t assume. Don’t hide confusion. Surface tradeoffs.
+- Minimum code that solves the problem. Nothing speculative.
+- Touch only what you must. Clean up only your own mess.
+- Define success criteria. Loop until verified.
+- Avoid expensive or risky work without confirmation.
+- Stop and ask before running destructive operations, deployments, 
+  production actions, unusually broad verification, expensive tool 
+  calls or creating commits.
 
 Never claim a command passed unless it ran successfully.
+
+## Dependency Policy
+
+- Before installing any package, verify that the package version is at least
+  two weeks old. If it is newer, do not install it and report the reason.
 
 ## Never
 
