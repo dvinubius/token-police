@@ -6,6 +6,7 @@
 |---|---|---|
 | Create or update the current-task PRD | `.agent/skills/to-prd/SKILL.md` | `.agent-state/current-task/PRD.md` |
 | Create optional current-task issues from an approved PRD | `.agent/skills/prd-to-issues/SKILL.md` | `.agent-state/current-task/issues/` |
+| Execute an approved PRD with waived review points | `.agent/skills/execute-prd-afk/SKILL.md` | PRD, optional issues, relevant code, tests, docs, and current diff |
 | Implement one current-task issue from start to finish | `.agent/skills/implement-issue/SKILL.md` | PRD, issue file, relevant code, tests, docs, and current diff |
 | Create or update the branch PR and check PRD conformity | `.agent/skills/finish-task/SKILL.md` | PRD, PR change set, affected project files |
 | Work on technical project docs | `.agent/docs/CONTEXT.md` | relevant files under `docs/` |
