@@ -37,8 +37,15 @@
   </nav>
   <div class="topbar-actions">
     <ThemeToggle />
-    <div class="refresh" id="refreshIndicator" title="Auto-refreshes every 30s">
-      <span class="dot"></span><span id="refreshText">{store.refreshStatus}</span>
+    <div
+      class="refresh"
+      class:pulsing={store.refreshStatus === 'live' && store.refreshPulseNonce > 0}
+      id="refreshIndicator"
+      title="Auto-refreshes every 30s"
+    >
+      {#key store.refreshPulseNonce}
+        <span class="dot"></span>
+      {/key}<span id="refreshText">{store.refreshStatus}</span>
     </div>
   </div>
 </header>

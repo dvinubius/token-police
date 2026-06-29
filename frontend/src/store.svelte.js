@@ -15,6 +15,7 @@ import { state } from './lib/state.js';
 const THEME_STORAGE_KEY = 'token-police-theme';
 const THEMES = new Set(['graphite', 'light']);
 const LIST_PAGE = 20; // session-list render window step (initial size and scroll increment)
+export const REFRESH_MS = 30000;
 
 function validTheme(theme) {
   return THEMES.has(theme) ? theme : 'graphite';
@@ -46,7 +47,8 @@ export const store = $state({
   llmCallsCache: null, // {id, llmCalls, session}
   activeRequestKey: null,
   expandedLlmCalls: new Set(),
-  refreshStatus: 'live', // 'live' | 'offline'; pulse wiring lands in the polling issue
+  refreshStatus: 'live', // 'live' | 'offline'
+  refreshPulseNonce: 0, // bumped after each successful refresh to restart the indicator pulse
   filters: { search: '', source: '', project: '', from: '', to: '' },
   tableSorts: {
     humanRequests: { key: 'time', dir: 'desc' },
@@ -149,7 +151,11 @@ export async function loadLlmCalls(id, isRefresh) {
     if (store.selectedId !== id) return;
     store.llmCallsCache = { id, session: data.session, llmCalls: data.llm_calls };
   } catch (err) {
-    if (!isRefresh) console.error('loadLlmCalls failed', err);
+    if (!isRefresh) {
+      console.error('loadLlmCalls failed', err);
+      return;
+    }
+    throw err;
   }
 }
 
@@ -180,19 +186,27 @@ export function toggleLlmCall(callKey) {
 }
 
 /* ---------- data ---------- */
-// Initial + refresh load of the global summary and the session list. The 30s
-// polling timer, selection re-fetch, and indicator pulse land in the polling
-// issue; this is the boot load so Stats renders.
+// Initial + polling refresh of the global summary, session list, and selected
+// session detail. Local view state (selection, list window/scroll, open dialog,
+// expansions, sorts) intentionally lives outside the fetched data assignments.
 export async function refresh() {
   try {
     const [summary, sessions] = await Promise.all([fetchSummary(), fetchSessions()]);
     store.summary = summary;
     store.sessions = sessions;
+    if (store.selectedId) await loadLlmCalls(store.selectedId, true);
     store.refreshStatus = 'live';
+    store.refreshPulseNonce += 1;
   } catch (err) {
     console.error('refresh failed', err);
     store.refreshStatus = 'offline';
   }
+}
+
+export function startPolling() {
+  refresh();
+  const timer = setInterval(refresh, REFRESH_MS);
+  return () => clearInterval(timer);
 }
 
 syncSeam();
