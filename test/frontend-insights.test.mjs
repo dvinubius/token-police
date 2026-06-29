@@ -4,7 +4,7 @@
 // behavior down lets the Svelte components built around them be refactored
 // safely.
 //
-// The bodies are unchanged from the former public/app.js, so these assertions
+// The bodies are unchanged from the legacy vanilla frontend, so these assertions
 // remain the parity proof that derivation behavior survived the Svelte + Vite
 // migration. This is the only test converted to ESM; the src/ CommonJS tests
 // are untouched.

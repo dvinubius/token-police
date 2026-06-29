@@ -1,6 +1,6 @@
 // Pure derivation/aggregation helpers for Human requests and LLM calls.
-// Framework-agnostic: no DOM, no network. Bodies moved verbatim from the former
-// public/app.js during the Svelte + Vite migration.
+// Framework-agnostic: no DOM, no network. Bodies moved verbatim from the legacy
+// vanilla frontend during the Svelte + Vite migration.
 
 export function contextTokensForLlmCall(t) {
   return t.context_input_tokens != null

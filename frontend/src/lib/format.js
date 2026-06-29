@@ -1,5 +1,5 @@
 // Pure formatting and labelling helpers. Framework-agnostic: no DOM, no
-// network. Bodies moved verbatim from the former public/app.js during the
+// network. Bodies moved verbatim from the legacy vanilla frontend during the
 // Svelte + Vite migration so the existing frontend test remains the parity
 // proof for this logic.
 

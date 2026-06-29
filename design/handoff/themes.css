@@ -1,8 +1,8 @@
 /* ============================================================================
  * Token Police — approved themes (Graphite + Clean light)
- * Drop-in CSS custom properties for public/styles.css.
+ * Drop-in CSS custom properties for frontend/src/styles.css.
  *
- * Uses the EXISTING variable names from styles.css so current rules keep working,
+ * Uses the EXISTING variable names from frontend/src/styles.css so current rules keep working,
  * and ADDS the three new semantic vars (--cost, --token, --ok) introduced by the
  * cost/tokens/model decoupling. After importing this, apply the small list of
  * selector repoints documented in visual-system.md §3.

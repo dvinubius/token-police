@@ -1,5 +1,5 @@
-// Runes-based reactive store. Replaces the former mutable `state` object from
-// public/app.js as the single source the component tree reacts to. Components
+// Runes-based reactive store. Replaces the former mutable state object from the
+// legacy vanilla frontend as the single source the component tree reacts to. Components
 // read fields off `store` and call the actions below; reactive derivation in
 // the components replaces the old manual renderX() calls.
 //

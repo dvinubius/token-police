@@ -1,6 +1,6 @@
 // Shared UI state seam consumed by the filter/sort helpers in sessions.js.
 //
-// This is the verbatim `state` object lifted from the former public/app.js so
+// This is the verbatim state shape lifted from the legacy vanilla frontend so
 // that the extracted helpers keep identical bodies and the frontend test keeps
 // the same seam (it mutates state.filters / state.tableSorts /
 // state.expandedSessionIds). A later migration issue replaces this plain

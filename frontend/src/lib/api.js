@@ -1,6 +1,6 @@
 // Thin client for this app's own local read-only API. Framework-agnostic; the
 // store and components consume these in later migration issues. getJSON body
-// moved verbatim from the former public/app.js.
+// moved verbatim from the legacy vanilla frontend.
 
 export async function getJSON(url) {
   const r = await fetch(url);

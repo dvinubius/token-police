@@ -1,5 +1,5 @@
 // Barrel for the framework-agnostic pure-logic library extracted from the
-// former public/app.js. Components, the store, and the frontend test all import
+// legacy vanilla frontend. Components, the store, and the frontend test all import
 // from here.
 
 export * from './format.js';

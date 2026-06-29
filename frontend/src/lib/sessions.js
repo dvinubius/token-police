@@ -1,6 +1,6 @@
 // Session-list filter/sort/visibility helpers. These read shared UI state
 // (filters, table sort directions, expanded subagent rows) from state.js.
-// Bodies moved verbatim from the former public/app.js.
+// Bodies moved verbatim from the legacy vanilla frontend.
 
 import { state } from './state.js';
 
