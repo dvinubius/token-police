@@ -3,12 +3,13 @@
   "entry": [
     "server.js",
     "start.js",
-    "public/index.html",
-    "public/app.js",
-    "public/styles.css",
+    "frontend/index.html",
+    "frontend/src/main.js",
+    "frontend/src/App.svelte",
+    "frontend/src/store.svelte.js",
+    "frontend/src/styles.css",
     "test/llm-insights.test.js",
-    "test/store.test.js",
-    "test/frontend-insights.test.js",
+    "test/frontend-insights.test.mjs",
     "design/handoff/themes.css"
   ]
 }

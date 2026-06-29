@@ -3,18 +3,21 @@
 ## Current Stack
 
 - Local Express server.
-- Static frontend in `public/`.
-- Vanilla JavaScript for state, data fetching, rendering, filtering, and dialog behavior.
-- CSS in `public/styles.css`.
+- Svelte + Vite frontend source in `frontend/`.
+- Svelte components and a runes-based store for state, data fetching, rendering, filtering, and dialog behavior.
+- CSS in `frontend/src/styles.css`.
+- Built static assets in generated `dist/`, served by Express.
 - Node.js runtime with local filesystem watchers.
 
 ## Relevant Files
 
 | File | Current responsibility |
 |---|---|
-| `public/index.html` | App shell, top navigation, Stats page containers, Sessions page containers. |
-| `public/app.js` | Page state, API fetching, rendering, filters, selection, grouping, dialog behavior. |
-| `public/styles.css` | Current visual implementation and layout rules. |
+| `frontend/index.html` | HTML shell and anti-FOUC theme bootstrap. |
+| `frontend/src/App.svelte` | App shell, top navigation, Stats page, and Sessions page composition. |
+| `frontend/src/store.svelte.js` | Page state, API fetching, polling, filters, selection, grouping, and dialog state. |
+| `frontend/src/styles.css` | Current visual implementation and layout rules. |
+| `vite.config.mjs` | Frontend build output and Vite dev-server `/api` proxy. |
 | `server.js` | Static serving and local REST API routes. |
 | `src/store.js` | Read model, aggregate totals, Session list projections, detail projections. |
 | `docs/domain-language.md` | Canonical domain terms. |

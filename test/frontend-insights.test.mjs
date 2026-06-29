@@ -1,17 +1,18 @@
-'use strict';
-
-// Coverage for public/app.js pure view logic — the data shaping that feeds the
-// session detail table and LLM-call dialog. These are the high-churn,
-// previously untested functions flagged as refactor-blocked; locking their
-// behavior down lets the DOM rendering around them be refactored safely.
+// Coverage for the pure view logic extracted to frontend/src/lib/ — the data
+// shaping that feeds the session detail table and LLM-call dialog. These are
+// the high-churn, previously refactor-blocked functions; locking their
+// behavior down lets the Svelte components built around them be refactored
+// safely.
 //
-// app.js is a plain browser <script>; under Node it exports its pure helpers
-// without booting (no document/fetch access here).
+// The bodies are unchanged from the legacy vanilla frontend, so these assertions
+// remain the parity proof that derivation behavior survived the Svelte + Vite
+// migration. This is the only test converted to ESM; the src/ CommonJS tests
+// are untouched.
 
-const assert = require('node:assert/strict');
-const test = require('node:test');
+import assert from 'node:assert/strict';
+import test from 'node:test';
 
-const app = require('../public/app.js');
+import * as app from '../frontend/src/lib/index.js';
 
 function call(overrides = {}) {
   return {

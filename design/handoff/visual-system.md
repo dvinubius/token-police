@@ -1,7 +1,7 @@
 # Token Police — Visual System Handoff
 
 Two approved color schemes from the style exploration, packaged for implementation
-against the existing front-end (`public/styles.css`, `public/app.js`, `public/index.html`).
+against the existing front-end (`frontend/src/styles.css`, `frontend/src/`, `frontend/index.html`).
 
 - **Graphite** — dark, near-monochrome chrome; color is reserved for data only.
 - **Clean light** — warm-white, minimal, airy.
@@ -95,7 +95,7 @@ Computed examples:
 
 ---
 
-## 3. Where to repoint in `public/styles.css`
+## 3. Where to repoint in `frontend/src/styles.css`
 
 Add `--cost`, `--token`, `--ok` to `:root` (values in `themes.css`), then change these
 declarations from the overloaded color to the semantic one:

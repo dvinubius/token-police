@@ -87,6 +87,14 @@ body {
   overflow: hidden;
 }
 
+/* The Svelte app mounts into #app; let its children (topbar + pages) be the
+   body's flex items directly, as the vanilla markup laid them out, so the
+   sessions two-pane grid stays viewport-height and the panes scroll
+   internally. */
+#app {
+  display: contents;
+}
+
 h1, h2 { margin: 0; font-weight: 600; }
 .num {
   font-family: var(--mono);

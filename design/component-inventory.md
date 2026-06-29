@@ -4,7 +4,7 @@
 
 | Component | Responsibility | Current implementation anchor |
 |---|---|---|
-| App shell | Owns global page structure and current page visibility. | `public/index.html`, `setPage()` |
+| App shell | Owns global page structure and current page visibility. | `frontend/index.html`, `frontend/src/App.svelte` |
 | Product identity | Displays product name and mark. | `.brand` |
 | Page tabs | Switch between Stats and Sessions. | `.page-tab`, `setPage()` |
 | Refresh indicator | Shows live or offline fetch status. | `#refreshIndicator`, `pulse()`, `refresh()` |

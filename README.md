@@ -106,13 +106,14 @@ billed at $0.
 /.
 ├── start.js            # bootstrap: installs deps if missing, then starts server
 ├── server.js           # Express app + REST endpoints + startup wiring
+├── frontend/           # Svelte + Vite dashboard source
 ├── src/
 │   ├── pricing.js      # LiteLLM fetch/cache + estimated-cost calculation
 │   ├── parseClaude.js  # Claude Code transcript parser
 │   ├── parseCodex.js   # Codex session parser
 │   ├── store.js        # in-memory store + aggregation + summary
 │   └── watcher.js      # chokidar watchers (recursive, handles missing dirs)
-├── public/             # static dark-mode frontend (HTML/CSS/vanilla JS)
+├── dist/               # generated dashboard build served by Express
 └── README.md
 ```
 
