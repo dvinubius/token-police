@@ -69,6 +69,36 @@
           c.title
       : '',
   );
+  let copyState = $state('idle');
+  let copyResetTimer;
+
+  async function copySessionId(id) {
+    if (!id) return;
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(id);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = id;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      copyState = 'copied';
+    } catch {
+      copyState = 'failed';
+    }
+
+    clearTimeout(copyResetTimer);
+    copyResetTimer = setTimeout(() => {
+      copyState = 'idle';
+    }, 1400);
+  }
 
   // Preserve the requests-pane scroll position across re-renders (e.g. the 30s
   // auto-refresh re-deriving the same rows, or a sort re-order), matching the
@@ -90,7 +120,26 @@
   {:else}
     <div class="detail-content" id="detailContent">
       <div class="detail-header">
-        <h2>Session</h2>
+        <h2 class="session-heading">
+          <span>Session</span>
+          <span class="session-id" title={c.id}>{c.id}</span>
+          <button
+            type="button"
+            class="copy-session-id"
+            aria-label="Copy session ID"
+            title={copyState === 'copied'
+              ? 'Copied'
+              : copyState === 'failed'
+                ? 'Copy failed'
+                : 'Copy session ID'}
+            onclick={() => copySessionId(c.id)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </h2>
         <div class="prompt-title">{c.is_subagent ? 'Initial subagent task' : 'Initial session prompt'}</div>
         <div class="session-title-card" title={sessionTitle}>
           <div class="session-title-text">{sessionTitle}</div>
