@@ -31,7 +31,7 @@ Replaces the old `◆` unicode mark and plain "Token Police" heading.
   `y=20` in the `0 0 32 36` viewBox. Fully theme-aware — the shell and cut-in
   details re-tone from design tokens. (Static SVG fallback is in `tokens.json` →
   `brand.logo.svgFallback`.)
-- **Wordmark:** "Token Police" in **Saira Condensed 800**, uppercase, `letter-spacing: 0.05em`,
+- **Wordmark:** "Token Police" in **Saira Condensed 800**, uppercase, `letter-spacing: 0.112em`,
   ~21px, color `text.primary`. This is the only place the display font is used.
 - **Tagline (kicker):** `AGENTIC SURVEILLANCE` in `--mono`, 9px, uppercase,
   `letter-spacing: 0.14em`, color `text.faint`. Tongue-in-cheek; **7899** is the app's real port.

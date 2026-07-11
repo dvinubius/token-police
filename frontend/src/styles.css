@@ -172,7 +172,7 @@ h1, h2 { margin: 0; font-weight: 600; }
   font-family: var(--display);
   font-size: 21px;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.112em;
   line-height: 0.95;
   text-transform: uppercase;
 }
@@ -553,8 +553,18 @@ input:focus, select:focus, button:focus-visible { border-color: var(--accent); b
 }
 .session-main { min-width: 0; }
 .session-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.session-sub { display: flex; gap: 10px; font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+.session-sub { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11px; color: var(--text-faint); margin-top: 2px; }
 .session-sub .proj { color: var(--text-dim); }
+.session-models {
+  flex-basis: 100%;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-models-label { color: var(--text-faint); font-family: var(--sans); }
 .session-right { text-align: right; white-space: nowrap; }
 .session-estimated-cost { font-family: var(--mono); font-weight: 600; color: var(--cost); font-size: 13px; }
 .session-meta { font-size: 11px; color: var(--text-faint); font-family: var(--mono); }
@@ -629,6 +639,31 @@ input:focus, select:focus, button:focus-visible { border-color: var(--accent); b
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+.session-detail-models {
+  display: flex;
+  gap: 7px;
+  align-items: baseline;
+  margin: 0 0 10px;
+  min-width: 0;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.session-detail-models-label {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.session-detail-models > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .prompt-title {
   margin: 0 0 5px;
@@ -784,12 +819,13 @@ table.llm-calls,
 table.requests { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 table.llm-calls {
   table-layout: fixed;
-  min-width: 1160px;
+  min-width: 1320px;
 }
 table.llm-calls col.col-expand { width: 34px; }
-table.llm-calls col.col-call { width: 85px; }
+table.llm-calls col.col-call { width: 64px; }
 table.llm-calls col.col-time { width: 140px; }
-table.llm-calls col.col-context { width: 105px; }
+table.llm-calls col.col-model { width: 120px; }
+table.llm-calls col.col-context { width: 70px; }
 table.llm-calls col.col-context-pct { width: 95px; }
 table.llm-calls col.col-cache-hit { width: 105px; }
 table.llm-calls col.col-fresh { width: 105px; }
