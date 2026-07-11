@@ -172,6 +172,7 @@
               <col class="col-expand" />
               <col class="col-call" />
               <col class="col-time" />
+              <col class="col-model" />
               <col class="col-context" />
               <col class="col-context-pct" />
               <col class="col-cache-hit" />
@@ -190,7 +191,7 @@
                   label="Time"
                   alignClass="l"
                 />
-                <th>Context</th><th>Context %</th><th>Cache hit %</th>
+                <th class="l">Model</th><th>Context</th><th>Context %</th><th>Cache hit %</th>
                 <SortHeader table="llmCalls" key="inputTokens" label="Fresh input" /><SortHeader
                   table="llmCalls"
                   key="cacheReadTokens"
@@ -243,6 +244,7 @@
                   >
                   <td class="l">{t.llm_call_index + 1}</td>
                   <td class="l ts-cell">{fmtDate(t.timestamp)}</td>
+                  <td class="l model-cell" title={t.model || 'Model not captured'}>{t.model || 'Model not captured'}</td>
                   <td title="{fmtTokensFull(contextTokens)} context tokens">{fmtTokens(contextTokens)}</td>
                   <td title={contextPctTitle}>{fmtPct(contextPctForLlmCall(t))}</td>
                   <td>{fmtPct(cacheHitPctForLlmCall(t))}</td>
@@ -257,7 +259,7 @@
                 </tr>
                 {#if expanded}
                   <tr class="llm-call-detail-row" class:hot
-                    ><td colspan="12"><LlmCallInsights call={t} {hot} /></td></tr
+                    ><td colspan="13"><LlmCallInsights call={t} {hot} /></td></tr
                   >
                 {/if}
               {/each}

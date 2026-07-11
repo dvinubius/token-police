@@ -128,6 +128,13 @@ export function modelSummary(calls) {
   return `Mixed models: ${shown}${models.length > 3 ? ` +${models.length - 3}` : ''}`;
 }
 
+export function firstModelSummary(calls) {
+  const models = [...new Set(calls.map((t) => t.model).filter(Boolean))];
+  const firstModel = calls[0]?.model;
+  if (!firstModel) return 'Model not captured';
+  return `${firstModel}${models.length > 1 ? ' et. al.' : ''}`;
+}
+
 export function sessionTotals(c, inclusive = false) {
   return {
     input_tokens: inclusive ? c.inclusive_total_input_tokens : c.total_input_tokens,

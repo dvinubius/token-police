@@ -20,6 +20,8 @@
     totalTokensForGroup,
     timestampValue,
     displayTotals,
+    modelSummary,
+    firstModelSummary,
   } from '../lib/index.js';
 
   // Only render detail once the selected session's LLM calls have loaded.
@@ -140,6 +142,10 @@
             </svg>
           </button>
         </h2>
+        <div class="session-detail-models">
+          <span class="session-detail-models-label">Models</span>
+          <span title={(c.models || []).join(', ')}>{(c.models || []).join(', ') || 'Model not captured'}</span>
+        </div>
         <div class="prompt-title">{c.is_subagent ? 'Initial subagent task' : 'Initial session prompt'}</div>
         <div class="session-title-card" title={sessionTitle}>
           <div class="session-title-text">{sessionTitle}</div>
@@ -173,7 +179,7 @@
             ><tr>
               <th class="l">#</th><SortHeader table="humanRequests" key="time" label="Time" alignClass="l" /><th
                 class="l">{requestLabel}</th
-              ><SortHeader table="humanRequests" key="llmCalls" label="LLM calls" />
+              ><th class="l">Model</th><SortHeader table="humanRequests" key="llmCalls" label="LLM calls" />
               <th>Context</th><SortHeader table="humanRequests" key="inputTokens" label="Fresh input" /><SortHeader
                 table="humanRequests"
                 key="cacheReadTokens"
@@ -224,6 +230,7 @@
                 <td class="l request-cell" title={requestFull}
                   >{#if requestShort}{requestShort}{:else}<span class="dim">—</span>{/if}</td
                 >
+                <td class="l model-cell" title={modelSummary(g.calls)}>{firstModelSummary(g.calls)}</td>
                 <td>{fmtTokensFull(g.calls.length)}</td>
                 <td title="{fmtTokensFull(latestContextTokens)} context tokens">{fmtTokens(latestContextTokens)}</td>
                 <TokenCell n={g.input_tokens} />

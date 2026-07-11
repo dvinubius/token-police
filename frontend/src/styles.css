@@ -819,7 +819,7 @@ table.llm-calls,
 table.requests { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 table.llm-calls {
   table-layout: fixed;
-  min-width: 1320px;
+  min-width: 1270px;
 }
 table.llm-calls col.col-expand { width: 34px; }
 table.llm-calls col.col-call { width: 64px; }
@@ -973,7 +973,7 @@ table.requests tbody tr.hot td.estimated-cost { color: var(--hot); font-weight: 
 }
 .dialog-backdrop[hidden] { display: none; }
 .request-dialog {
-  width: min(1280px, 100%);
+  width: min(1320px, 100%);
   max-height: calc(100vh - 56px);
   overflow: hidden;
   display: flex;

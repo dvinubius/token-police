@@ -11,6 +11,7 @@
   const hasSubagents = $derived(subCount > 0 && !session.is_subagent);
   const expanded = $derived(store.expandedSessionIds.has(session.id));
   const selected = $derived(session.id === store.selectedId);
+  const models = $derived(Array.isArray(session.models) ? session.models : []);
 </script>
 
 <!-- Click-only, matching the former sessionRow(); the original list rows had no
@@ -37,6 +38,11 @@
       >{#if hasSubagents}<span><span class="num">{subCount}</span> subagents</span>{/if}<span
         ><span class="num">{displayed.llm_call_count}</span> LLM calls</span
       ><span><span class="num">{fmtTokens(tokens)}</span> tok</span>
+      {#if models.length}
+        <span class="session-models" title={models.join(', ')}><span class="session-models-label">Models:</span>
+          {models.join(', ')}</span
+        >
+      {/if}
     </div>
   </div>
   <div class="session-right">

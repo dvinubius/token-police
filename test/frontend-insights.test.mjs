@@ -178,6 +178,13 @@ test('modelSummary reports single, mixed, and missing models', () => {
   assert.equal(app.modelSummary(mixed), 'Mixed models: a, b, c +1');
 });
 
+test('firstModelSummary reports the first call model and marks mixed requests', () => {
+  assert.equal(app.firstModelSummary([]), 'Model not captured');
+  assert.equal(app.firstModelSummary([call({ model: '' }), call({ model: 'b' })]), 'Model not captured');
+  assert.equal(app.firstModelSummary([call({ model: 'a' }), call({ model: 'a' })]), 'a');
+  assert.equal(app.firstModelSummary([call({ model: 'a' }), call({ model: 'b' }), call({ model: 'a' })]), 'a et. al.');
+});
+
 test('requestPreview truncates with an ellipsis only past the limit', () => {
   assert.equal(app.requestPreview('short', 10), 'short');
   assert.equal(app.requestPreview('abcdefghij', 5), 'abcde…');

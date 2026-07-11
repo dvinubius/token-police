@@ -77,6 +77,10 @@ function timestampMax(a, b) {
   return String(a).localeCompare(String(b)) >= 0 ? a : b;
 }
 
+function sessionModels(session) {
+  return [...new Set(session.llm_calls.map((llmCall) => llmCall.model).filter(Boolean))];
+}
+
 class Store {
   constructor(pricing) {
     this.pricing = pricing;
@@ -223,6 +227,7 @@ class Store {
       total_estimated_cost_usd: session.total_estimated_cost_usd,
       llm_call_count: session.llm_call_count,
       human_request_count: session.human_request_count,
+      models: sessionModels(session),
       thread_source: session.thread_source || (session.is_subagent ? 'subagent' : 'user'),
       is_subagent: !!session.is_subagent,
       parent_session_id: session.parent_session_id || '',

@@ -222,6 +222,20 @@ test('human_request_count falls back to call-derived request keys without a requ
   assert.equal(session.human_request_count, 2);
 });
 
+test('session list items report distinct models in first-use order', () => {
+  const store = new Store(pricingSum());
+  const session = makeSession('mixed-models', [
+    makeCall({ llm_call_index: 0, model: 'gpt-5-codex' }),
+    makeCall({ llm_call_index: 1, model: 'claude-sonnet-4-5' }),
+    makeCall({ llm_call_index: 2, model: 'gpt-5-codex' }),
+  ]);
+  store._enrich(session);
+  store.sessions.set(session.id, session);
+
+  assert.deepEqual(store.listSessions()[0].models, ['gpt-5-codex', 'claude-sonnet-4-5']);
+  assert.deepEqual(store.getSessionMeta(session.id).models, ['gpt-5-codex', 'claude-sonnet-4-5']);
+});
+
 test('getLlmCalls and getSessionMeta return null for unknown ids', () => {
   const store = new Store(pricingSum());
   assert.equal(store.getLlmCalls('missing'), null);
