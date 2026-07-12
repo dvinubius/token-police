@@ -1,70 +1,203 @@
+/* Liquid glass themes (design/handoff/themes.css). Translucent chrome surfaces
+   pair their background with backdrop-filter: var(--blur); the app background
+   is a fixed layered gradient painted once on body. Sticky table headers use
+   the OPAQUE --th-bg. The modal frame is the only glass layer of the dialog
+   (--modal-bg + the stronger --modal-blur); its inner reading surfaces
+   (--modal-well / --modal-elev-2) are OPAQUE and get no blur, so their look
+   never depends on layer stacking or on the frame blur compositing. */
+
+/* ---------- Liquid dark (frosted glass · aurora dark) ---------- */
 :root,
-:root[data-theme="graphite"] {
+:root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #131314;
-  --bg-elev: #1c1c1e;
-  --bg-elev-2: #252528;
-  --border: #35353b;
-  --text: #ededec;
-  --text-dim: #a0a0a3;
-  --text-faint: #6a6a6e;
-  --accent: #d7d7d2;
-  --cost: #e3b341;
-  --token: #58a6ff;
+
+  /* surfaces */
+  --bg:
+    radial-gradient(1100px 700px at 12% -10%, rgba(110, 168, 254, 0.28), transparent 60%),
+    radial-gradient(950px 650px at 88% 112%, rgba(201, 139, 255, 0.2), transparent 62%),
+    radial-gradient(750px 520px at 72% 18%, rgba(91, 210, 192, 0.14), transparent 55%),
+    linear-gradient(160deg, #0b0e15 0%, #0e1220 55%, #0a0d14 100%);
+  --bg-elev: rgba(255, 255, 255, 0.055); /* panel / card */
+  --bg-elev-2: rgba(255, 255, 255, 0.09); /* raised inset, table stat cells */
+  --bg-well: rgba(9, 12, 20, 0.45); /* sunken wells: nav container, prompt blocks */
+  --topbar-bg: rgba(13, 17, 26, 0.55);
+  --input-bg: rgba(255, 255, 255, 0.07);
+  --modal-bg: rgba(26, 32, 48, 0.6); /* modal frame (glass); alpha is the see-through knob — blur only smears what shows */
+  --modal-backdrop: rgba(4, 7, 14, 0.44); /* light scrim — keeps bloom visible */
+  --modal-blur: blur(6px) saturate(1.4); /* modal frame only — light enough that shapes behind stay readable as shapes */
+  --modal-well: #0c1019; /* OPAQUE: prompt well + table scroll container */
+  --modal-elev-2: #141a27; /* OPAQUE: modal header band + stat tiles */
+  --th-bg: #1b2231; /* OPAQUE sticky table header */
+  --border: rgba(255, 255, 255, 0.13);
+
+  /* text */
+  --text: #eaf0f8;
+  --text-dim: #a2aebe;
+  --text-faint: #68758a;
+
+  /* metrics (decoupled from model colors) */
+  --cost: #f5b14d;
+  --token: #8db9ff;
+
+  /* brand */
   --brand-logo: var(--token);
-  --cc: #bc8cff;
-  --codex: #56d364;
-  --ok: #56d364;
-  --ok-glow: rgba(86, 211, 100, 0.6);
-  --hot: #f85149;
-  --hot-bg: rgba(248, 81, 73, 0.12);
-  --sel-bg: #252528;
-  --sel-border: #8d8d94;
-  --badge-cc-bg: rgba(188, 140, 255, 0.18);
-  --badge-codex-bg: rgba(86, 211, 100, 0.18);
-  --table-divider: rgba(53, 53, 59, 0.55);
-  --overlay: rgba(12, 12, 13, 0.76);
-  --focus-ring: rgba(215, 215, 210, 0.12);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --radius: 10px;
-  --radius-sm: 8px;
+  --logo-ink: #10151f; /* shield inset strokes + $ glyph */
+
+  /* model / source identity */
+  --cc: #c98bff;
+  --codex: #5bd2c0;
+
+  /* status */
+  --ok: #5bd29a;
+  --ok-glow: rgba(91, 210, 154, 0.6);
+  --hot: #ff6b6b;
+  --hot-bg: rgba(255, 107, 107, 0.15);
+
+  /* ui chrome */
+  --accent: #6ea8fe;
+  --sel-bg: rgba(110, 168, 254, 0.18);
+  --sel-border: rgba(110, 168, 254, 0.7);
+  --glow: 0 0 18px rgba(110, 168, 254, 0.45);
+  --badge-cc-bg: rgba(201, 139, 255, 0.18);
+  --badge-cc-fg: #c98bff;
+  --badge-codex-bg: rgba(91, 210, 192, 0.18);
+  --badge-codex-fg: #5bd2c0;
+  --table-divider: rgba(255, 255, 255, 0.08);
+  --overlay: rgba(4, 7, 14, 0.44); /* = --modal-backdrop */
+  --focus-ring: rgba(110, 168, 254, 0.28);
+
+  /* glass */
+  --blur: blur(26px) saturate(1.6);
+
+  /* shape */
+  --radius: 16px; /* cards, session rows, modal, nav container */
+  --radius-sm: 12px; /* insets, prompt wells, breakdown/table frames, inputs */
+  --radius-btn: 10px; /* icon buttons (mode toggle, copy, close) */
+  --radius-inner: 13px; /* segments inside wells (nav tabs, style pills) */
+  --radius-badge: 7px; /* source badges */
+  --border-width: 1px;
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+
+  /* type */
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --display: "Saira Condensed", "Arial Narrow", var(--sans);
 }
 
+/* ---------- Liquid arctic (frosted glass · polar light) ---------- */
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f6f6f3;
-  --bg-elev: #ffffff;
-  --bg-elev-2: #f1f1ec;
-  --border: #e5e4dd;
-  --text: #1a1a17;
-  --text-dim: #5f5f57;
-  --text-faint: #9b9b90;
-  --accent: #3457d5;
-  --cost: #b9740c;
-  --token: #2f6fd6;
+
+  /* surfaces */
+  --bg:
+    radial-gradient(1150px 720px at 10% -12%, rgba(56, 168, 236, 0.46), transparent 62%),
+    radial-gradient(980px 660px at 90% 114%, rgba(148, 116, 246, 0.34), transparent 62%),
+    radial-gradient(780px 540px at 70% 12%, rgba(43, 199, 164, 0.3), transparent 56%),
+    radial-gradient(620px 440px at 32% 78%, rgba(248, 181, 94, 0.16), transparent 60%),
+    linear-gradient(160deg, #f3f7fd 0%, #e2ebf8 55%, #eef4fb 100%);
+  --bg-elev: rgba(255, 255, 255, 0.56);
+  --bg-elev-2: rgba(255, 255, 255, 0.74);
+  --bg-well: rgba(255, 255, 255, 0.42);
+  --topbar-bg: rgba(255, 255, 255, 0.6);
+  --input-bg: rgba(255, 255, 255, 0.64);
+  --modal-bg: rgba(248, 251, 255, 0.62); /* modal frame (glass); alpha is the see-through knob — blur only smears what shows */
+  --modal-backdrop: rgba(38, 54, 84, 0.3); /* light scrim — keeps bloom visible */
+  --modal-blur: blur(6px) saturate(1.6); /* modal frame only — light enough that shapes behind stay readable as shapes */
+  --modal-well: #f9fbfd; /* OPAQUE: prompt well + table scroll container */
+  --modal-elev-2: #f2f5fa; /* OPAQUE: modal header band + stat tiles */
+  --th-bg: #edf2f9; /* OPAQUE sticky table header */
+  --border: rgba(96, 126, 180, 0.3);
+
+  /* text */
+  --text: #131722;
+  --text-dim: #54617a;
+  --text-faint: #8b98ae;
+
+  /* metrics (decoupled from model colors) */
+  --cost: #c2710f;
+  --token: #3a6ea5;
+
+  /* brand */
   --brand-logo: var(--token);
-  --cc: #7a45e0;
-  --codex: #138a72;
+  --logo-ink: #f2f6fc;
+
+  /* model / source identity */
+  --cc: #7b56d6;
+  --codex: #1f9d6b;
+
+  /* status */
   --ok: #1f9d57;
   --ok-glow: rgba(31, 157, 87, 0.36);
-  --hot: #d23b3b;
-  --hot-bg: rgba(210, 59, 59, 0.08);
-  --sel-bg: #eef2ff;
-  --sel-border: #3457d5;
-  --badge-cc-bg: rgba(122, 69, 224, 0.13);
-  --badge-codex-bg: rgba(19, 138, 114, 0.13);
-  --table-divider: rgba(229, 228, 221, 0.78);
-  --overlay: rgba(26, 26, 23, 0.42);
-  --focus-ring: rgba(52, 87, 213, 0.16);
-  --shadow: 0 1px 3px rgba(20, 20, 17, 0.06);
-  --radius: 12px;
-  --radius-sm: 8px;
+  --hot: #d6455d;
+  --hot-bg: rgba(214, 69, 93, 0.1);
+
+  /* ui chrome */
+  --accent: #0a7ea4;
+  --sel-bg: rgba(10, 126, 164, 0.14);
+  --sel-border: rgba(10, 126, 164, 0.65);
+  --glow: 0 0 18px rgba(56, 168, 236, 0.4);
+  --badge-cc-bg: rgba(123, 86, 214, 0.13);
+  --badge-cc-fg: #6245ab;
+  --badge-codex-bg: rgba(31, 157, 107, 0.13);
+  --badge-codex-fg: #197e56;
+  --table-divider: rgba(96, 126, 180, 0.2);
+  --overlay: rgba(38, 54, 84, 0.3); /* = --modal-backdrop */
+  --focus-ring: rgba(10, 126, 164, 0.25);
+
+  /* glass */
+  --blur: blur(28px) saturate(1.9);
+
+  /* shape */
+  --radius: 16px;
+  --radius-sm: 12px;
+  --radius-btn: 10px;
+  --radius-inner: 13px;
+  --radius-badge: 7px;
+  --border-width: 1px;
+  --shadow: 0 18px 48px rgba(31, 92, 162, 0.2), 0 2px 10px rgba(31, 92, 162, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+
+  /* type */
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --display: "Saira Condensed", "Arial Narrow", var(--sans);
+}
+
+/* ---------- Solid fallback mode (degraded render mode, not a theme) ----------
+   Set via data-solid on <html> by the index.html bootstrap when backdrop-filter
+   is unsupported, the user prefers reduced transparency, or a manual override
+   is stored (localStorage 'token-police-solid'). The gradient --bg stays; only
+   translucency + blur are replaced with opaque on-palette values. Must come
+   after the theme blocks so it wins the cascade. */
+:root[data-solid],
+:root[data-theme="dark"][data-solid] {
+  --blur: none;
+  --modal-blur: none;
+  --bg-elev: #14171f;
+  --bg-elev-2: #1b1f2a;
+  --bg-well: #0c0e13;
+  --topbar-bg: #14171f;
+  --input-bg: #10141d;
+  --modal-bg: #151a26;
+  --border: #272c38;
+  --table-divider: rgba(39, 44, 56, 0.55);
+  --overlay: rgba(0, 0, 0, 0.62);
+  --sel-bg: #1b2436;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+:root[data-theme="light"][data-solid] {
+  --blur: none;
+  --modal-blur: none;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #e6eaf1;
+  --bg-well: #eef1f6;
+  --topbar-bg: #ffffff;
+  --input-bg: #ffffff;
+  --modal-bg: #f8fbff;
+  --border: #d4dae6;
+  --table-divider: rgba(212, 218, 230, 0.78);
+  --overlay: rgba(19, 23, 34, 0.5);
+  --sel-bg: #e1f1f7;
+  --shadow: 0 1px 3px rgba(19, 23, 34, 0.07);
 }
 
 * { box-sizing: border-box; }
@@ -72,7 +205,6 @@
 html, body {
   height: 100%;
   margin: 0;
-  background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
   font-size: 14px;
@@ -80,6 +212,10 @@ html, body {
 }
 
 body {
+  /* Fixed layered gradient the glass surfaces frost over; painted once here,
+     never repeated on inner surfaces. */
+  background: var(--bg);
+  background-attachment: fixed;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
@@ -108,7 +244,8 @@ h1, h2 { margin: 0; font-weight: 600; }
   align-items: center;
   gap: 24px;
   padding: 11px 20px;
-  background: var(--bg-elev);
+  background: var(--topbar-bg);
+  backdrop-filter: var(--blur);
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow);
   position: sticky;
@@ -141,7 +278,7 @@ h1, h2 { margin: 0; font-weight: 600; }
 .logo-inset,
 .logo-crest {
   fill: none;
-  stroke: var(--bg-elev);
+  stroke: var(--logo-ink);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -154,7 +291,7 @@ h1, h2 { margin: 0; font-weight: 600; }
   stroke-width: 1.4;
 }
 .logo-glyph {
-  fill: var(--bg-elev);
+  fill: var(--logo-ink);
   font-family: var(--mono);
   font-size: 14px;
   font-weight: 700;
@@ -194,7 +331,7 @@ h1, h2 { margin: 0; font-weight: 600; }
   justify-self: center;
   gap: 4px;
   padding: 3px;
-  background: var(--bg);
+  background: var(--bg-well);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
@@ -206,7 +343,7 @@ h1, h2 { margin: 0; font-weight: 600; }
   color: var(--text-dim);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-inner);
   cursor: pointer;
 }
 .page-tab:hover { color: var(--text); }
@@ -232,9 +369,10 @@ h1, h2 { margin: 0; font-weight: 600; }
   height: 34px;
   padding: 0;
   color: var(--text-dim);
-  background: var(--bg);
+  background: var(--input-bg);
+  backdrop-filter: var(--blur);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-btn);
   cursor: pointer;
 }
 
@@ -255,7 +393,7 @@ h1, h2 { margin: 0; font-weight: 600; }
   stroke-linejoin: round;
 }
 
-:root[data-theme="graphite"] .theme-icon-moon,
+:root[data-theme="dark"] .theme-icon-moon,
 :root[data-theme="light"] .theme-icon-sun { display: block; }
 
 .page { min-height: 0; }
@@ -296,7 +434,7 @@ h1, h2 { margin: 0; font-weight: 600; }
 }
 .refresh .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 var(--ok-glow); }
 .refresh.pulsing .dot { animation: pulse 0.8s ease-out; }
-@keyframes pulse { 0% { box-shadow: 0 0 0 0 var(--ok-glow);} 100%{ box-shadow: 0 0 0 8px rgba(86, 211, 100, 0);} }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 var(--ok-glow);} 100%{ box-shadow: 0 0 0 8px transparent;} }
 
 /* ---------- Overview ---------- */
 .overview {
@@ -314,6 +452,7 @@ h1, h2 { margin: 0; font-weight: 600; }
 }
 .card {
   background: var(--bg-elev);
+  backdrop-filter: var(--blur);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
@@ -456,7 +595,8 @@ input, select, button {
   font-family: var(--sans);
   font-size: 13px;
   color: var(--text);
-  background: var(--bg-elev);
+  background: var(--input-bg);
+  backdrop-filter: var(--blur);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 7px 9px;
@@ -492,13 +632,18 @@ input:focus, select:focus, button:focus-visible { border-color: var(--accent); b
   align-items: center;
   padding: 10px 12px;
   background: var(--bg-elev);
+  backdrop-filter: var(--blur);
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius);
   cursor: pointer;
   transition: border-color 0.1s, background 0.1s;
 }
 .session-row:hover { border-color: var(--sel-border); }
-.session-row.selected { border-color: var(--sel-border); background: var(--sel-bg); }
+.session-row.selected {
+  border-color: var(--sel-border);
+  background: var(--sel-bg);
+  box-shadow: var(--shadow);
+}
 .session-row.subagent-row {
   margin-left: var(--subagent-indent, 18px);
 }
@@ -509,14 +654,14 @@ input:focus, select:focus, button:focus-visible { border-color: var(--accent); b
   font-weight: 700;
   letter-spacing: 0.03em;
   padding: 3px 6px;
-  border-radius: 5px;
+  border-radius: var(--radius-badge);
   text-transform: uppercase;
   white-space: nowrap;
 }
-.badge.cc { background: var(--badge-cc-bg); color: var(--cc); }
-.badge.codex { background: var(--badge-codex-bg); color: var(--codex); }
+.badge.cc { background: var(--badge-cc-bg); color: var(--badge-cc-fg); }
+.badge.codex { background: var(--badge-codex-bg); color: var(--badge-codex-fg); }
 .badge.subagent {
-  background: var(--bg);
+  background: transparent;
   color: var(--text-dim);
   border: 1px solid var(--border);
 }
@@ -572,6 +717,7 @@ input:focus, select:focus, button:focus-visible { border-color: var(--accent); b
 /* ---------- Detail ---------- */
 .detail-pane {
   background: var(--bg-elev);
+  backdrop-filter: var(--blur);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -678,7 +824,7 @@ input:focus, select:focus, button:focus-visible { border-color: var(--accent); b
   max-width: 600px;
   padding: 8px 10px;
   margin-bottom: 10px;
-  background: var(--bg);
+  background: var(--bg-well);
   border: 1px solid var(--border);
   border-radius: 8px;
 }
@@ -814,7 +960,10 @@ input:focus, select:focus, button:focus-visible { border-color: var(--accent); b
   flex: 1 1 auto;
   min-height: 0;
 }
-.dialog-table-wrap { max-height: min(42vh, 420px); }
+.dialog-table-wrap {
+  max-height: min(42vh, 420px);
+  background: var(--modal-well);
+}
 table.llm-calls,
 table.requests { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 table.llm-calls {
@@ -838,7 +987,7 @@ table.llm-calls thead th,
 table.requests thead th {
   position: sticky;
   top: 0;
-  background: var(--bg-elev-2);
+  background: var(--th-bg); /* opaque — sticky headers must not frost over scrolled rows */
   color: var(--text-dim);
   font-size: 11px;
   font-weight: 600;
@@ -978,7 +1127,8 @@ table.requests tbody tr.hot td.estimated-cost { color: var(--hot); font-weight: 
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: var(--bg-elev);
+  background: var(--modal-bg);
+  backdrop-filter: var(--modal-blur);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
@@ -990,7 +1140,7 @@ table.requests tbody tr.hot td.estimated-cost { color: var(--hot); font-weight: 
   gap: 16px;
   padding: 16px 18px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg-elev-2);
+  background: var(--modal-elev-2);
 }
 .dialog-kicker {
   font-size: 10px;
@@ -1032,7 +1182,7 @@ table.requests tbody tr.hot td.estimated-cost { color: var(--hot); font-weight: 
   margin-bottom: 14px;
   padding: 10px 12px;
   color: var(--text-dim);
-  background: var(--bg);
+  background: var(--modal-well);
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 13px;
@@ -1049,13 +1199,13 @@ table.requests tbody tr.hot td.estimated-cost { color: var(--hot); font-weight: 
 .llm-call-detail-row td {
   padding: 0 !important;
   border-bottom: 1px solid var(--table-divider);
-  background: var(--bg);
+  background: var(--modal-well);
 }
 .llm-call-detail-row.hot {
   background: transparent;
 }
 .llm-call-detail-row.hot td {
-  background: var(--bg);
+  background: var(--modal-well);
 }
 .llm-insights {
   display: grid;
@@ -1095,9 +1245,12 @@ table.requests tbody tr.hot td.estimated-cost { color: var(--hot); font-weight: 
   gap: 8px;
   margin-bottom: 14px;
 }
+/* Inside the glass modal, stat tiles sit on the near-opaque modal layer for
+   guaranteed text contrast (base .tstat keeps --bg-elev-2 outside the dialog). */
+.dialog-stats .tstat { background: var(--modal-elev-2); }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(128, 128, 128, 0.35); border-radius: 6px; } /* theme-neutral — translucent --border no longer reads as a thumb */
 ::-webkit-scrollbar-thumb:hover { background: var(--sel-border); }
 ::-webkit-scrollbar-track { background: transparent; }
 

@@ -11,7 +11,7 @@ const LIST_PAGE = 20; // session-list render window step (initial size and scrol
 
 export const state = {
   page: 'stats',
-  theme: 'graphite',
+  theme: 'dark',
   sessions: [],
   summary: null,
   listLimit: LIST_PAGE, // rows currently rendered in the session list; grows on scroll

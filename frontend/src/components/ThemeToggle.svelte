@@ -3,7 +3,7 @@
 
   // The toggle flips to the opposite theme; its label describes the destination,
   // matching the former applyTheme() wiring.
-  const nextTheme = $derived(store.theme === 'graphite' ? 'light' : 'graphite');
+  const nextTheme = $derived(store.theme === 'dark' ? 'light' : 'dark');
   const label = $derived(nextTheme === 'light' ? 'Switch to light theme' : 'Switch to dark theme');
 </script>
 

@@ -1,24 +1,37 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="graphite">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Token Police - Agentic Surveillance</title>
     <script>
       // Anti-FOUC: apply the stored theme before first paint so the page never
-      // flashes the default graphite theme for a light-theme user.
+      // flashes the default dark theme for a light-theme user. Also detects
+      // environments that need the solid render mode (no backdrop-filter or
+      // prefers-reduced-transparency), honoring a stored manual override.
       (() => {
         try {
-          const theme = localStorage.getItem('token-police-theme');
-          if (theme === 'graphite' || theme === 'light') {
+          let theme = localStorage.getItem('token-police-theme');
+          if (theme === 'graphite') {           // legacy value → migrate
+            theme = 'dark';
+            localStorage.setItem('token-police-theme', theme);
+          }
+          if (theme === 'dark' || theme === 'light') {
             document.documentElement.dataset.theme = theme;
+          }
+          const bf = CSS.supports('backdrop-filter', 'blur(1px)')
+                  || CSS.supports('-webkit-backdrop-filter', 'blur(1px)');
+          const prt = matchMedia('(prefers-reduced-transparency: reduce)').matches;
+          const solid = localStorage.getItem('token-police-solid'); // 'true'|'false'|null
+          if (solid ? solid === 'true' : (!bf || prt)) {
+            document.documentElement.dataset.solid = 'true';
           }
         } catch (_) {}
       })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Saira+Condensed:wght@600;700;800&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Saira+Condensed:wght@600;700;800&display=swap" />
   </head>
   <body>
     <div id="app"></div>

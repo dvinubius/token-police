@@ -13,19 +13,20 @@ import { fetchSummary, fetchSessions, fetchLlmCalls, groupHumanRequests } from '
 import { state } from './lib/state.js';
 
 const THEME_STORAGE_KEY = 'token-police-theme';
-const THEMES = new Set(['graphite', 'light']);
+const THEMES = new Set(['dark', 'light']);
 const LIST_PAGE = 20; // session-list render window step (initial size and scroll increment)
 export const REFRESH_MS = 30000;
 
 function validTheme(theme) {
-  return THEMES.has(theme) ? theme : 'graphite';
+  if (theme === 'graphite') return 'dark'; // legacy stored value → migrate
+  return THEMES.has(theme) ? theme : 'dark';
 }
 
 function storedTheme() {
   try {
     return validTheme(localStorage.getItem(THEME_STORAGE_KEY));
   } catch (_) {
-    return 'graphite';
+    return 'dark';
   }
 }
 
@@ -80,7 +81,7 @@ export function applyTheme(theme, persist = true) {
 }
 
 export function toggleTheme() {
-  applyTheme(store.theme === 'graphite' ? 'light' : 'graphite');
+  applyTheme(store.theme === 'dark' ? 'light' : 'dark');
 }
 
 /* ---------- routing ---------- */

@@ -14,6 +14,14 @@ export default defineConfig({
   build: {
     outDir: resolve(root, 'dist'),
     emptyOutDir: true,
+    // Vite 8's CSS minifier (lightningcss) collapses a hand-written
+    // `backdrop-filter` + `-webkit-backdrop-filter` pair to ONLY the -webkit-
+    // form, which Firefox does not implement — silently killing every glass
+    // surface in the built app. So styles.css writes only the standard
+    // property, and these explicit targets make lightningcss generate the
+    // -webkit- prefix itself (Safari 16 still needs it). Do not hand-write
+    // -webkit-backdrop-filter in styles.css.
+    cssTarget: ['chrome110', 'firefox110', 'safari16'],
   },
   server: {
     proxy: {
