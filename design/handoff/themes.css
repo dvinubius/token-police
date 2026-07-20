@@ -1,6 +1,11 @@
 /* ============================================================================
- * Token Police — approved themes (Graphite + Clean light)
- * Drop-in CSS custom properties for frontend/src/styles.css.
+ * Historical pre-liquid design snapshot (Graphite + Clean light).
+ *
+ * This file is retained for design history only. It is not imported by the
+ * application and is not a drop-in source of current values. The implemented
+ * Liquid dark/Liquid arctic themes and solid fallback live in
+ * frontend/src/styles.css; theme/bootstrap behavior lives in frontend/index.html
+ * and frontend/src/store.svelte.js.
  *
  * Uses the EXISTING variable names from frontend/src/styles.css so current rules keep working,
  * and ADDS the three new semantic vars (--cost, --token, --ok) introduced by the

@@ -61,5 +61,7 @@ Claude Design should not change product scope, add onboarding, add accounts, add
 - Data columns in `ui-spec.md` remain available.
 - Expandable LLM call insight fields in `ui-spec.md` remain available.
 - Accessibility notes are addressed.
-- Token values come from the selected visual direction (liquid glass; see `visual-direction.md` and `handoff/`).
+- Visual values come from the implemented liquid-glass system in
+  `frontend/src/styles.css`; `visual-direction.md` and
+  `handoff/visual-system.md` explain the design intent.
 - The app still works as a desktop-only local dashboard.

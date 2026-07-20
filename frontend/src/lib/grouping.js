@@ -73,10 +73,11 @@ export function newHumanRequestGroup(key, index, text, fullText, timestamp) {
   };
 }
 
-// Build one group per Human request. When the session provides a Human request
-// list (Claude Code), seed groups from it in chronological order so requests
-// with zero LLM calls still get a row; LLM calls then attach by request key.
-// Sessions without the list (e.g. Codex) fall back to call-derived grouping.
+// Build one group per Human request. When the Session provides the normalized
+// Human request list emitted by the current parsers, seed groups from it in
+// chronological order so requests with zero LLM calls still get a row; LLM
+// calls then attach by request key. Legacy inputs without the list fall back to
+// call-derived grouping.
 export function groupHumanRequests(llmCalls, humanRequests) {
   const groups = new Map();
   if (Array.isArray(humanRequests)) {

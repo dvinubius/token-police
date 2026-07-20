@@ -5,7 +5,7 @@
 - Default working directory: repository root.
 - Toolchain versions: Node.js 18+ from `package.json`.
 - Package manager: npm with `package-lock.json`.
-- Required local services: none for `npm start`. For frontend-only Vite
+- Required local services: none for `npm start` after dependencies are installed. For frontend-only Vite
   development, run the Express API separately with `npm run server`; Vite
   proxies `/api/*` to `http://127.0.0.1:7899`.
 
@@ -13,10 +13,10 @@
 
 ```text
 install:      npm install
-dev:          npm run server      # Express API + static dist, no rebuild
+dev:          npm run server      # Express API + existing static dist, no rebuild
 frontend:     npm run dev         # Vite dev server with /api proxy
 build:        npm run build       # frontend/ -> dist/
-start:        npm start           # build, then serve dist/ through Express
+start:        npm start           # build, serve dist/, and open the browser
 test:focused: npm test -- test/llm-insights.test.js
 test:full:    npm test
 coverage:     npm run coverage

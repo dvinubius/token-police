@@ -1,136 +1,59 @@
 # Token Police
 
-A self-contained **local** web dashboard for tracking token usage and estimated cost across
-**Claude Code** and **Codex CLI** sessions. It groups each transcript into human
-requests and the LLM calls they triggered. All data stays on your machine —
-nothing is uploaded, no accounts, no telemetry.
+Token Police is a local dashboard for tracking token usage and Estimated cost
+across Claude Code and Codex CLI Sessions. It groups provider transcripts into
+Human requests and the LLM calls they triggered; transcript contents remain on
+the local machine.
 
-![overview](https://img.shields.io/badge/runs-100%25%20local-3fb950) ![port](https://img.shields.io/badge/port-7899-58a6ff)
+## Dashboard
 
-![Token Police Overview — estimated cost, total tokens, a 30-day daily usage chart split by source, and the top 5 most expensive sessions, light](docs/assets/Stats_light.png)
+![Token Police overview showing Estimated cost, total tokens, the 30-day usage chart, and the most expensive Sessions in the light theme](docs/assets/Stats_light.png)
 
-### At Night
+![Token Police overview showing Estimated cost, total tokens, the 30-day usage chart, and the most expensive Sessions in the dark theme](docs/assets/Stats_dark.png)
 
-![Token Police Overview — estimated cost, total tokens, a 30-day daily usage chart split by source, and the top 5 most expensive sessions, dark](docs/assets/Stats_dark.png)
+### Session inspection
 
-## What it does
+![Sessions list beside Session detail with totals and a sortable Human request table in the light theme](docs/assets/Session_Overview_light.png)
 
-- Parses every Claude Code transcript in `~/.claude/projects/**/*.jsonl` and every
-  Codex session in `~/.codex/sessions/**/*.jsonl`.
-- Watches those directories and updates live while Claude Code / Codex are running.
-- Prices each LLM call using live rates from
-  [LiteLLM](https://github.com/BerriAI/litellm) (cached on disk for 1 hour, with a
-  hardcoded fallback if the fetch fails).
-- Serves a dark-mode dashboard at **http://localhost:7899**.
+![LLM call dialog with high-cost calls highlighted and expandable insights in the light theme](docs/assets/Human_Request_light.png)
 
-## Quick start
+![Sessions list beside Session detail with totals and a sortable Human request table in the dark theme](docs/assets/Session_Overview_dark.png)
 
-```bash
-npm start
+![LLM call dialog with high-cost calls highlighted and expandable insights in the dark theme](docs/assets/Human_Request_dark.png)
+
+## Architecture
+
+The Node.js server watches local transcript directories, normalizes provider
+records into an in-memory read model, enriches LLM calls with LiteLLM pricing
+and context data, and serves a Svelte dashboard plus a read-only JSON API on
+`127.0.0.1:7899` by default. See the
+[accepted architecture](docs/normative/architecture.md) for component
+boundaries, data flow, and API surfaces.
+
+## Documentation
+
+- [Normative technical documentation](docs/normative/README.md)
+- [Repository map](docs/repository-map.md)
+- [Development commands](docs/development-commands.md)
+- [Domain language](docs/domain-language.md)
+- [Product and interface design](design/product-brief.md)
+- [Lean agentic development guide](.agent/how-to.md)
+
+## Development
+
+```text
+install:      npm install
+dev:          npm run server      # Express API + existing static dist; no rebuild
+frontend:     npm run dev         # Vite dev server with /api proxy
+build:        npm run build       # frontend/ -> dist/
+start:        npm start           # build, serve dist/, and open the browser
+test:focused: npm test -- test/llm-insights.test.js
+test:full:    npm test
+coverage:     npm run coverage
+health:       npm run health
 ```
 
-`npm start` installs dependencies if they are missing, starts the server, and
-opens your browser automatically. That's the only command you need.
-
-> Requires **Node.js 18+** (uses the built-in `fetch`). Check with `node --version`.
-
-If you prefer to do it manually:
-
-```bash
-npm install
-npm start
-```
-
-To start without auto-opening the browser, or on a different port:
-
-```bash
-DASH_NO_OPEN=1 PORT=8080 npm start
-```
-
-## The UI
-
-- **Overview** — estimated cost & tokens, a stacked daily-usage chart for the last 30
-  days (split by source), and the top 5 Sessions by estimated cost.
-- **Sessions list** — every Session sorted by last activity, with a
-  source badge (`CC` / `Codex`), project, title, estimated cost, tokens, human request
-  count, and LLM call count. Filter by source, project, free-text search, and
-  date range.
-- **Session detail** — click any Session to see its totals plus a table
-  of human requests, including subtotaled fresh input, cache read, output,
-  cache write, LLM call count, and estimated cost.
-- **LLM call dialog** — click a human request to inspect the individual LLM calls
-  it triggered. **The top 20% most expensive calls in that request are
-  highlighted in red.**
-
-The page auto-refreshes every 30 seconds, so it stays current while you work.
-
-The Sessions list and Session detail side by side — filter on the left, totals and the
-per-Human-request breakdown on the right:
-
-![Sessions list alongside a Session detail with totals and a sortable human-request table, light](docs/assets/Session_Overview_light.png)
-
-Inside the LLM call dialog, the top 20% most expensive calls for that human request are
-highlighted in red:
-
-![LLM call dialog for a single human request, with the most expensive calls highlighted in red, light](docs/assets/Human_Request_light.png)
-
-### At Night
-
-
-![Sessions list alongside a Session detail with totals and a sortable human-request table, dark](docs/assets/Session_Overview_dark.png)
-
-![LLM call dialog for a single human request, with the most expensive calls highlighted in red, dark](docs/assets/Human_Request_dark.png)
-
-## REST API
-
-The same server exposes a small JSON API (handy for scripting):
-
-| Endpoint | Description |
-| --- | --- |
-| `GET /api/sessions` | All Sessions with totals. |
-| `GET /api/sessions/:id/llm-calls` | Every LLM call for one Session, including its parent Human request. |
-| `GET /api/summary` | Aggregate totals, per-source totals, 30-day daily breakdown, top 5. |
-| `GET /api/health` | Liveness check. |
-
-## How tokens & estimated cost are computed
-
-Both providers are normalized to four **disjoint** token buckets — `input`
-(fresh input), `output`, `cache_read`, `cache_write` — so one estimated-cost formula works
-for both:
-
-- **Claude Code** (`message.usage`): `input_tokens` already excludes cache;
-  `cache_creation_input_tokens` → cache write, `cache_read_input_tokens` → cache read.
-- **Codex** (`token_count` events): OpenAI's `input_tokens` *includes*
-  `cached_input_tokens`, so fresh input = `input_tokens − cached_input_tokens`,
-  and `cached_input_tokens` → cache read (OpenAI has no separate cache-write price).
-  Per-call values come from `last_token_usage`; when absent they are recovered by
-  subtracting the previous cumulative total. Repeated/rate-limit `token_count`
-  pings are de-duplicated by only counting events where the cumulative total changes.
-
-Estimated costs use the `model` recorded in each LLM call, falling back to
-`claude-sonnet-4-5` rates for unrecognized models. Synthetic/local calls are
-billed at $0.
-
-## Project layout
-
-```
-/.
-├── start.js            # bootstrap: installs deps if missing, then starts server
-├── server.js           # Express app + REST endpoints + startup wiring
-├── frontend/           # Svelte + Vite dashboard source
-├── src/
-│   ├── pricing.js      # LiteLLM fetch/cache + estimated-cost calculation
-│   ├── parseClaude.js  # Claude Code transcript parser
-│   ├── parseCodex.js   # Codex session parser
-│   ├── store.js        # in-memory store + aggregation + summary
-│   └── watcher.js      # chokidar watchers (recursive, handles missing dirs)
-├── dist/               # generated dashboard build served by Express
-└── README.md
-```
-
-## Notes
-
-- Malformed JSONL lines are skipped silently; a bad line never crashes a parse.
-- If `~/.claude/projects` or `~/.codex/sessions` doesn't exist yet, the server
-  polls for it and starts watching once it appears.
-- The browser only ever talks to this local API — it makes no external network calls.
+Requires Node.js 18 or newer. Run `npm install` before `npm start`; the start
+script builds the frontend before the bootstrap launcher checks runtime
+dependencies. Set `DASH_NO_OPEN=1` to suppress browser opening, or override
+`HOST` and `PORT` for the local server.

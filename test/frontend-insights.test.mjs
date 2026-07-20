@@ -97,7 +97,7 @@ test('groupHumanRequests seeds zero-call requests from the request list and aggr
   assert.equal(g1.calls.length, 0);
 });
 
-test('groupHumanRequests falls back to call-derived grouping without a request list (Codex)', () => {
+test('groupHumanRequests falls back to call-derived grouping for legacy input without a request list', () => {
   const llmCalls = [
     call({ llm_call_index: 0, human_request_index: 0, estimated_cost_usd: 1 }),
     call({ llm_call_index: 1, human_request_index: 0, estimated_cost_usd: 1 }),

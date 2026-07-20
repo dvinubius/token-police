@@ -1,11 +1,9 @@
 // Shared UI state seam consumed by the filter/sort helpers in sessions.js.
 //
-// This is the verbatim state shape lifted from the legacy vanilla frontend so
-// that the extracted helpers keep identical bodies and the frontend test keeps
-// the same seam (it mutates state.filters / state.tableSorts /
-// state.expandedSessionIds). A later migration issue replaces this plain
-// singleton with the Svelte runes store; until then it is the single mutable
-// source these pure-ish helpers read from.
+// This state shape was lifted from the legacy vanilla frontend so the extracted
+// helpers and their Node tests keep a plain-JavaScript seam. The Svelte runes
+// store is the UI source of truth and mirrors filter, sort, expansion, and
+// selection mutations into this singleton through syncSeam().
 
 const LIST_PAGE = 20; // session-list render window step (initial size and scroll increment)
 

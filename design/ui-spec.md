@@ -63,7 +63,8 @@ Behavior:
 - Chevron controls are left-aligned inside the source-badge stack so controls align vertically regardless of source-badge width.
 - Expanded subagent Sessions appear directly below their parent row, indented on the left while keeping the right edge aligned with the parent row.
 - Subagent Session rows use a compact `SUB` badge below the source badge and remain directly selectable.
-- Selected Session remains visually and programmatically distinct.
+- Selected Session remains visually distinct. Programmatic selection state on
+  the click-only Session row is a current accessibility gap.
 - The Session list renders an initial window of 20 rows and appends the next 20 as the user scrolls toward the end, until the filtered set is exhausted.
 - List metadata reflects the full filtered set, independent of how many rows are currently windowed into view.
 - Changing any filter resets the window to the first 20 rows and returns the list to the top; auto-refresh preserves the current window.
@@ -100,6 +101,7 @@ Required columns:
 - Human request number.
 - Time.
 - Human request preview.
+- Model.
 - LLM calls.
 - Context.
 - Fresh input.
@@ -135,6 +137,7 @@ Required LLM call columns:
 - Expand/collapse control.
 - LLM call number.
 - Time.
+- Model.
 - Context.
 - Context percentage.
 - Cache hit percentage.
@@ -148,7 +151,7 @@ Required LLM call columns:
 Behavior:
 
 - Dialog opens for one Human request at a time.
-- Dialog is top-aligned at a 100px top offset and capped at 1280px wide.
+- Dialog is top-aligned at a 100px top offset and capped at 1320px wide.
 - Human request prompt text is muted, capped to 600px wide, clamped to three lines, and exposes the full text on hover.
 - Model is shown once below the dialog title when consistent, or as a mixed-model summary when multiple models are present.
 - Calls display newest first.
@@ -161,6 +164,6 @@ Behavior:
 - Expanded detail sections stay visually neutral even when their parent row is high-cost.
 - Visible token values use compact K/M/B formatting, with exact counts available in tooltips where useful.
 - Time, Fresh input, Total tokens, Cache read, Cache write, Output, and Estimated cost are sortable.
-- Calls in the top 20 percent by Estimated cost for that Human request are emphasized when there are enough calls to make the distinction meaningful.
+- Calls in the top 20 percent by Estimated cost for that Human request are emphasized when the request has at least five positive-cost calls.
 - Escape closes the dialog.
 - Backdrop click closes the dialog.

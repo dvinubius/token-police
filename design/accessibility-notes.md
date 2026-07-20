@@ -52,3 +52,20 @@ The product is desktop-only, but desktop-only does not remove keyboard, semantic
 - Preserve canonical domain terms from `docs/domain-language.md`.
 - Avoid language that implies authoritative billing. Use Estimated cost.
 - Avoid language that implies cloud upload or account-backed analytics.
+
+## Current Implementation Gaps
+
+- **Unscrollable UI:** On the Sessions page, a large number of expanded
+  subagent rows can push the detail table out of view with no way to scroll it
+  back into view.
+- Session rows and Top Session items are click-only; they do not yet expose a
+  keyboard selection action or programmatic selected state.
+- The dialog focuses its close button on open, but it does not trap focus,
+  mark the background inert, or restore focus to the triggering Human request
+  row on close.
+- The backdrop click target is a non-interactive `div` with a suppressed Svelte
+  semantics warning; the nested dialog itself does have `role="dialog"` and
+  `aria-modal="true"`.
+- The click-only rows and backdrop also appear in the Svelte build warnings.
+  All listed gaps should remain explicit here until the interaction code
+  changes.

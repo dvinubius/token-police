@@ -8,14 +8,11 @@ in two themes the app toggles between:
 - **Liquid dark** — frosted glass over an aurora-dark gradient.
 - **Liquid arctic** — frosted glass over a polar-light gradient.
 
-Reference prototype: `Token Police - Style Explorer v2 (standalone).html` (in
-this folder; v2 adds the modal glass treatment). It also contains two non-liquid
-parent studies ("Refined dark", "Arctic") for comparison; only the liquid
-variants are adopted.
-
-Concrete values and implementation guidance live in `handoff/`:
-`handoff/tokens.json`, `handoff/themes.css`, `handoff/visual-system.md`, and
-the actionable plan in `handoff/implementation-handoff.md`.
+The implemented reference is `frontend/src/styles.css`, with theme/bootstrap
+behavior in `frontend/index.html` and `frontend/src/store.svelte.js`.
+`handoff/visual-system.md` explains the implemented token roles and component
+mapping. The JSON/CSS artifacts under `handoff/` are retained as historical
+pre-liquid exploration snapshots and are not implementation authority.
 
 ## Fallback: solid render mode (decision)
 
@@ -25,9 +22,9 @@ are **retired as user-facing options**. For environments that render
 older Firefox) and for `prefers-reduced-transparency` users, the app ships a
 **solid render mode of the liquid design**: ~14 surface tokens overridden with
 opaque values reused from the parent studies, blur disabled, gradient kept.
-It is auto-detected with a manual override — one design, two render modes.
-See `handoff/themes.css` (solid fallback blocks) and
-`handoff/implementation-handoff.md`.
+It is auto-detected with a `token-police-solid` local-storage override — one
+design, two render modes. See the bootstrap in `frontend/index.html` and the
+`[data-solid]` token overrides in `frontend/src/styles.css`.
 
 ## Scope: style only, not layout
 

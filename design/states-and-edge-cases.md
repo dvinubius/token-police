@@ -5,7 +5,7 @@
 | State | Expected behavior |
 |---|---|
 | Initial load | Fetch Summary and Sessions, then render the current page. |
-| Successful refresh | Update Summary, Sessions, filters, list, and selected detail if present. |
+| Successful refresh | Update Summary, Sessions, and selected detail if present while preserving filters and other local view state. |
 | Failed refresh | Keep existing rendered data if available and show offline refresh status. |
 | No imported Sessions | Show zero/empty metrics and no-data list states without breaking layout. |
 | New files detected | Data appears after watcher parses files and next refresh runs. |
@@ -68,4 +68,4 @@
 | Simple Session stats | Use the same tabular stats treatment as parent Sessions, but with one labelled row. |
 | Expanded LLM call row | Keep table headers and numeric columns stable; expanded content must not reflow the LLM call table. |
 | Sorted tables | Keep sortable headers keyboard reachable and expose direction without disrupting row activation. |
-| Keyboard-only user | Keep tab order, focus, row activation, and dialog close behavior reliable. |
+| Keyboard-only user | Page tabs, filters, subagent chevrons, sort controls, Human request rows, LLM-call rows, and dialog close behavior are keyboard reachable; Session and Top Session row selection remain pointer-only gaps. |

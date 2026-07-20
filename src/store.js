@@ -163,7 +163,7 @@ class Store {
     session.llm_call_count = session.llm_calls.length;
     // Prefer the parser-emitted Human request list when present, so requests
     // that triggered zero billed LLM calls are still counted. Fall back to the
-    // set of request keys derived from LLM calls (e.g. Codex Sessions).
+    // set of request keys derived from LLM calls for legacy/parser-less inputs.
     session.human_request_count = Array.isArray(session.human_requests)
       ? session.human_requests.length
       : requests.size;

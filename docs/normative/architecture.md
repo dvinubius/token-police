@@ -5,9 +5,9 @@
 | Actor or external system | Direction | Broad interaction | Interface or boundary | Detailed source |
 |---|---|---|---|---|
 | Local user | Inbound | Opens the local dashboard, filters Sessions, inspects Human requests and LLM calls. | Browser UI built from `frontend/` into `dist/` and served by the local Express server. | `frontend/index.html`, `frontend/src/`, `vite.config.mjs`, `server.js` |
-| Claude Code transcript files | Inbound | Supplies `.jsonl` transcripts from `~/.claude/projects/**` for Session import. | Local filesystem watcher and parser boundary. | `server.js`, `src/watcher.js`, `src/parseClaude.js` |
-| Codex CLI session files | Inbound | Supplies `.jsonl` session logs from `~/.codex/sessions/**` for Session import. | Local filesystem watcher and parser boundary. | `server.js`, `src/watcher.js`, `src/parseCodex.js` |
-| LiteLLM model price catalog | Outbound | Provides model rates and context windows used for Estimated cost and context occupancy. | HTTPS fetch with one-hour local disk cache and hardcoded fallback rates. | `src/pricing.js` |
+| Claude Code transcript files | Inbound | Supplies `.jsonl` transcripts from `~/.claude/projects/**` for Session import. | Local filesystem watcher and parser boundary. | [Integration contract](integrations/claude-code-transcripts.md), `server.js`, `src/watcher.js`, `src/parseClaude.js` |
+| Codex CLI session files | Inbound | Supplies `.jsonl` session logs from `~/.codex/sessions/**` for Session import. | Local filesystem watcher and parser boundary. | [Integration contract](integrations/codex-session-files.md), `server.js`, `src/watcher.js`, `src/parseCodex.js` |
+| LiteLLM model price catalog | Outbound | Provides model rates and context windows used for Estimated cost and context occupancy. | HTTPS fetch with one-hour local disk cache and hardcoded fallback rates. | [Integration contract](integrations/litellm-model-catalog.md), `src/pricing.js` |
 | Operating system browser opener | Outbound | Best-effort launch of the local dashboard after server startup. | `open`, `cmd /c start`, or `xdg-open`; disabled with `DASH_NO_OPEN`. | `server.js` |
 
 ## System Shape
@@ -26,7 +26,12 @@
 
 ## Internal Dynamics
 
-- Startup: `start.js` optionally installs missing dependencies, then loads `server.js`. `server.js` creates `Pricing`, loads rates, creates `Store`, starts `Watcher` for Claude Code and Codex directories, mounts static assets and REST routes, listens on `HOST`/`PORT`, and optionally opens the browser.
+- Startup: `npm start` first builds `frontend/` into `dist/`, then invokes
+  `start.js`. The bootstrap optionally installs missing runtime dependencies
+  before loading `server.js`. `server.js` creates `Pricing`, loads rates,
+  creates `Store`, starts `Watcher` for Claude Code and Codex directories,
+  mounts static assets and REST routes, listens on `HOST`/`PORT`, and optionally
+  opens the browser.
 - Transcript ingestion: `Watcher.start()` scans existing `.jsonl` files before establishing recursive chokidar watchers. Adds and changes are debounced before calling `Store.upsertFromFile(source, filePath)`; unlinks call `Store.removeFile(filePath)`.
 - Source normalization: `Store.upsertFromFile()` selects `parseCodexFile()` for `source === 'codex'` and `parseClaudeFile()` otherwise. Parsers return normalized Sessions with source, project, title, timestamps, file path, full and preview Human request text, and LLM calls using the shared token buckets `input_tokens`, `output_tokens`, `cache_read_tokens`, and `cache_write_tokens`. Codex and Claude Code Sessions additionally carry thread metadata when present, including whether the Session is a subagent Session, its parent Session id, and spawned-subagent name/role/depth. When available, parsers also annotate LLM calls with compact insight fields such as activity summary, assistant preview, outcome, tool hint, reasoning-output tokens, and nearby tool-result size. Both parsers additionally emit a chronological `human_requests` list (index, preview text, full text, timestamp) independent of LLM calls, so a Human request that triggered zero billed LLM calls is still represented (e.g. an interrupted Claude prompt or an aborted Codex turn). Claude Code interrupt markers (`[Request interrupted by user]`) are excluded from this list and from request indexing; Codex signals interrupts with `turn_aborted` events rather than a synthetic user message, so it has no equivalent marker to exclude.
 - Enrichment: after parsing, `Store._enrich()` mutates each LLM call with Estimated cost, context input tokens, model context window, context-window percentage, cache-hit percentage, fresh-input percentage, cache-write percentage, and a compact cost-driver summary. It also writes Session-level totals and Human request counts. Store list/detail projections group subagent Sessions under parent Sessions when source metadata exposes a parent id, and parent detail projections include inclusive totals for main-agent plus subagent usage while global summary totals continue to count each imported transcript once.
@@ -62,7 +67,11 @@
 
 - Validation: Transcript lines are parsed defensively in `src/parseClaude.js` and `src/parseCodex.js`; malformed JSONL lines are skipped. File-level parse failures are caught in `Store.upsertFromFile()` and logged without crashing the server. API route parameters are limited to Session id lookup; missing Sessions return `404`.
 - Authorization: There is no authentication or authorization layer. The server binds to `127.0.0.1` by default and is intended as a local-only dashboard. Changing `HOST` can expose the unauthenticated API and UI.
-- Data access: Runtime Session data is stored only in memory inside `Store`. The only disk writes are dependency installation by `start.js` and the LiteLLM price cache under `.cache/litellm_prices.json`.
+- Data access: Runtime Session data is stored only in memory inside `Store`.
+  Server runtime writes only the LiteLLM price cache under
+  `.cache/litellm_prices.json`; the build writes generated assets to `dist/`,
+  and the bootstrap can write `node_modules/` when runtime dependencies are
+  missing.
 - Side effects: Filesystem reads occur in parser modules and watcher scans. Filesystem watching occurs in `src/watcher.js`. External network access occurs only in `src/pricing.js` when fetching the LiteLLM catalog. Browser launch occurs only in `server.js`. The browser UI calls only same-origin local API endpoints.
 - Error handling: Pricing fetch failures fall back from live fetch to stale cache to hardcoded rates. Price-cache write failures warn and continue. Watcher errors warn and continue. Browser-open failures are ignored as best effort. API errors are not centrally translated beyond the explicit Session-not-found `404`.
 
@@ -74,6 +83,9 @@
 
 ## Exceptions And Transitional States
 
-- None.
-- `docs/normative/integrations/README.md` currently lists no integration contracts even though the implementation consumes local Claude Code/Codex files and fetches LiteLLM pricing data.
-- Automated tests currently cover parser normalization and store/API projections for LLM-call insight fields. Browser interaction behavior is verified manually unless a frontend test harness is added.
+- Automated tests cover provider parser normalization, zero-call Human requests,
+  subagent hierarchy, Store enrichment/projections/summary behavior, and the
+  framework-independent frontend helpers used for formatting, grouping,
+  filtering, sorting, hierarchy visibility, and displayed totals. Svelte
+  component interaction and browser rendering do not currently have an
+  automated browser harness.

@@ -22,7 +22,8 @@ Make token usage inspectable at three levels:
 - Local-only data surface served from the local Express server.
 - No authentication in the current product shape.
 - No mobile layout requirement for this design package.
-- No visual language is prescribed by this package.
+- The implemented visual language is the two-theme liquid-glass system in
+  `frontend/src/styles.css`, with an automatically selected solid fallback.
 
 ## Current App Scope
 
@@ -32,6 +33,9 @@ Make token usage inspectable at three levels:
 - Estimates cost from model pricing data with local cache and fallback behavior.
 - Exposes the same data through local JSON API endpoints.
 
-## Design Goal For Claude Design
+## Design Maintenance Goal
 
-Explore new design and visual language while preserving the current information structure, component model, user flows, desktop-only assumption, and interaction behavior.
+Preserve the current information structure, component model, user flows,
+desktop-only assumption, and interaction behavior while keeping design
+documentation aligned with the implemented Svelte components and visual
+system.
