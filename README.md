@@ -34,6 +34,10 @@ preview: npm run preview:demo   # build the demo and serve dist/ locally
 deploy:  npm run build:demo     # then publish dist/ to any static host
 ```
 
+`vercel.json` pins the deploy settings, so a Vercel project needs no dashboard
+configuration. On any other static host, set the build command to
+`npm run build:demo` and the output directory to `dist`.
+
 See [the demo build decision](docs/normative/decisions/0004-frozen-static-demo-build.md)
 for what the demo does and does not exercise.
 

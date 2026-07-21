@@ -43,6 +43,14 @@ local transcript directories and needs no server.
 - Deploying is publishing `dist/` to any static host. Rebuild to refresh the
   sample data; between rebuilds the demo adapter day-shifts timestamps so the
   30-day chart stays populated.
+- `vercel.json` pins the deploy settings in the repository: build command
+  `npm run build:demo` and output directory `dist`. The override matters — the
+  Vite framework preset would otherwise run `npm run build`, which emits the
+  app without `dist/demo/`, and every data fetch would 404. Any other static
+  host needs the same two settings configured on its side.
+- The demo build fetches the LiteLLM price catalog. `.cache/litellm_prices.json`
+  is gitignored, so a CI build with no network falls back to the hardcoded
+  rates in `src/pricing.js`: Estimated cost shifts slightly, nothing breaks.
 
 `test/demo-dataset.test.js` runs the generator through the parsers and asserts
 the dataset still demonstrates both providers, multi-model Sessions, subagent

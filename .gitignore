@@ -8,6 +8,7 @@
 coverage/
 dist/
 .demo-build/
+.vercel/
 
 node_modules/
 .claude/*
