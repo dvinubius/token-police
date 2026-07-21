@@ -2,24 +2,21 @@
 
 Token Police is a local dashboard for tracking token usage and Estimated cost
 across Claude Code and Codex CLI Sessions. It groups provider transcripts into
-Human requests and the LLM calls they triggered; transcript contents remain on
-the local machine.
+Human requests and the LLM calls they triggered.
+
+Transcript contents remain **on the local machine**.
+
+VISIT THE [DEMO](https://token-police-demo.vercel.app/) 🤩 
 
 ## Dashboard
 
 ![Token Police overview showing Estimated cost, total tokens, the 30-day usage chart, and the most expensive Sessions in the light theme](docs/assets/Stats_light.png)
 
-![Token Police overview showing Estimated cost, total tokens, the 30-day usage chart, and the most expensive Sessions in the dark theme](docs/assets/Stats_dark.png)
-
 ### Session inspection
-
-![Sessions list beside Session detail with totals and a sortable Human request table in the light theme](docs/assets/Session_Overview_light.png)
-
-![LLM call dialog with high-cost calls highlighted and expandable insights in the light theme](docs/assets/Human_Request_light.png)
 
 ![Sessions list beside Session detail with totals and a sortable Human request table in the dark theme](docs/assets/Session_Overview_dark.png)
 
-![LLM call dialog with high-cost calls highlighted and expandable insights in the dark theme](docs/assets/Human_Request_dark.png)
+![LLM call dialog with high-cost calls highlighted and expandable insights in the light theme](docs/assets/Human_Request_light.png)
 
 ## Hosted demo
 
@@ -75,7 +72,7 @@ coverage:     npm run coverage
 health:       npm run health
 ```
 
-Requires Node.js 18 or newer. Run `npm install` before `npm start`; the start
-script builds the frontend before the bootstrap launcher checks runtime
-dependencies. Set `DASH_NO_OPEN=1` to suppress browser opening, or override
+Requires Node.js 20.19+ or 22.12+, the floor set by the Vite 8 build toolchain.
+Run `npm install` before `npm start`; the start script builds the frontend
+before the bootstrap launcher checks runtime dependencies. Set `DASH_NO_OPEN=1` to suppress browser opening, or override
 `HOST` and `PORT` for the local server.

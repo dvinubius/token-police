@@ -3,7 +3,10 @@
 ## Environment
 
 - Default working directory: repository root.
-- Toolchain versions: Node.js 18+ from `package.json`.
+- Toolchain versions: Node.js `^20.19.0 || >=22.12.0` from `package.json`. The
+  floor is set by the build toolchain (Vite 8 and the Svelte plugin), not by the
+  server; `npm run server` alone still runs on older releases, but `npm start`
+  builds first, so treat the declared range as the requirement.
 - Package manager: npm with `package-lock.json`.
 - Required local services: none for `npm start` after dependencies are installed. For frontend-only Vite
   development, run the Express API separately with `npm run server`; Vite
