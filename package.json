@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:demo": "VITE_DEMO=1 vite build && node demo/build.js",
+    "preview:demo": "npm run build:demo && vite preview",
     "start": "npm run build && node start.js",
     "server": "node server.js",
     "test": "node --test",

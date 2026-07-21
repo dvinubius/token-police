@@ -6,4 +6,5 @@ export * from './format.js';
 export * from './grouping.js';
 export * from './sessions.js';
 export * from './api.js';
+export * from './demo.js';
 export { state } from './state.js';

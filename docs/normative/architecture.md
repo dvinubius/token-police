@@ -22,7 +22,8 @@
 | `src/pricing.js` | Model rate and context-window resolution. | LiteLLM fetch/cache/fallback behavior, model-family fallbacks, per-token rates, context windows, and per-call Estimated cost calculation. | Transcript parsing, session aggregation, HTTP routing, or frontend rendering. |
 | `src/store.js` | In-memory read model for the local dashboard. | Session upsert/removal, file-to-session mapping, LLM call enrichment, list/detail API projections, aggregate totals, daily buckets, and top-session summaries. | Filesystem watching, HTTP routing, provider-specific parsing rules, or DOM behavior. |
 | `frontend/` | Browser UI source. | Svelte components, reactive UI state, API polling, client-side filtering, chart rendering, Human request grouping for detail display, and LLM call dialogs. | File watching, parsing, pricing authority, server-side aggregation, or external network calls. |
-| `dist/` | Generated browser UI build. | Static assets emitted by Vite and served by Express. | Source edits, hand-maintained behavior, or runtime data ownership. |
+| `dist/` | Generated browser UI build. | Static assets emitted by Vite and served by Express, plus the frozen `dist/demo/` documents in a demo build. | Source edits, hand-maintained behavior, or runtime data ownership. |
+| `demo/` | Hosted-demo data generation. | The authored demo spec, its rendering into provider-shaped `.jsonl` fixtures, and the build step that parses them and freezes `Store` projections into `dist/demo/`. | Parsing rules, pricing authority, projection shapes, or any behavior the local server depends on. |
 
 ## Internal Dynamics
 
@@ -37,6 +38,7 @@
 - Enrichment: after parsing, `Store._enrich()` mutates each LLM call with Estimated cost, context input tokens, model context window, context-window percentage, cache-hit percentage, fresh-input percentage, cache-write percentage, and a compact cost-driver summary. It also writes Session-level totals and Human request counts. Store list/detail projections group subagent Sessions under parent Sessions when source metadata exposes a parent id, and parent detail projections include inclusive totals for main-agent plus subagent usage while global summary totals continue to count each imported transcript once.
 - API read path: `GET /api/sessions` returns list projections from `Store.listSessions()`. `GET /api/sessions/:id/llm-calls` returns Session metadata plus enriched LLM calls. `GET /api/summary` returns aggregate totals, per-source totals, a local-calendar 30-day daily breakdown, and the top five Sessions by Estimated cost. `GET /api/health` reports liveness and in-memory Session count.
 - Frontend refresh: `frontend/src/store.svelte.js` polls `/api/summary` and `/api/sessions` every 30 seconds, driving Svelte components for global stats, daily bars, top Sessions, filters, and the Session list. Parent Sessions with subagent children are collapsed by default and can be expanded in the list; expanded subagent Sessions display directly under their parent when relationship metadata is available. When a Session is selected, it fetches `/api/sessions/:id/llm-calls` and groups LLM calls into Human requests or subagent tasks for the detail table and dialog.
+- Demo build: `npm run build:demo` sets `VITE_DEMO=1` and then runs `demo/build.js`, which generates fictitious transcripts, ingests them through the same parsers, `Pricing`, and `Store` used at runtime, and writes the resulting projections to `dist/demo/`. In such a build `frontend/src/lib/api.js` resolves each endpoint to its frozen document through `frontend/src/lib/demo.js` instead of calling the REST API; every document carries the build's anchor day, and timestamps are shifted forward by whole local days on read so the 30-day summary window stays populated. No `Watcher`, Express route, or LiteLLM fetch participates. See [decision 0004](decisions/0004-frozen-static-demo-build.md).
 
 ## Dependency Rules
 
@@ -61,6 +63,8 @@
 | Estimated cost and context windows | `src/pricing.js` | Rate lookup, cache policy, model fallback, and cost math stay in pricing. |
 | Session read model and aggregation | `src/store.js` | Totals, API projections, daily summaries, and top-session selection stay in the store. |
 | Dashboard presentation | `frontend/index.html`, `frontend/src/` | Component state, filters, charts, dialogs, and client-only grouping for display stay in the frontend. |
+| Demo sample data | `demo/dataset.js`, `demo/transcripts.js` | The demo's realism lives in the authored spec and the fixture renderer; it must reach the UI through the real parsers and store, never by hand-writing API payloads. |
+| Demo read path | `frontend/src/lib/demo.js` | Static-document fetching and the whole-day timestamp shift stay behind `lib/api.js`; components and the reactive store must not branch on demo mode for data access. |
 | Canonical domain terms | `docs/domain-language.md` | Documentation and code-facing language should use Session, Human request, LLM call, Estimated cost, and Token bucket consistently. |
 
 ## Cross-Cutting Boundaries

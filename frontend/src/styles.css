@@ -324,6 +324,22 @@ h1, h2 { margin: 0; font-weight: 600; }
   text-transform: uppercase;
   white-space: nowrap;
 }
+/* Demo builds only: marks the hosted sample data so it is never mistaken for
+   the viewer's own transcripts. */
+.demo-flag {
+  align-self: center;
+  padding: 3px 7px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-badge);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
 
 .page-nav {
   display: flex;

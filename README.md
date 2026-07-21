@@ -21,6 +21,22 @@ the local machine.
 
 ![LLM call dialog with high-cost calls highlighted and expandable insights in the dark theme](docs/assets/Human_Request_dark.png)
 
+## Hosted demo
+
+`npm run build:demo` produces a self-contained static build that showcases the
+dashboard without any local transcripts. It generates fictitious Claude Code and
+Codex transcripts, runs them through the real parsers and pricing, and freezes
+the resulting API responses into `dist/demo/`. The demo build reads no `.claude`
+or `.codex` directory, needs no server, and labels itself with a `Demo` badge.
+
+```text
+preview: npm run preview:demo   # build the demo and serve dist/ locally
+deploy:  npm run build:demo     # then publish dist/ to any static host
+```
+
+See [the demo build decision](docs/normative/decisions/0004-frozen-static-demo-build.md)
+for what the demo does and does not exercise.
+
 ## Architecture
 
 The Node.js server watches local transcript directories, normalizes provider
@@ -47,6 +63,8 @@ dev:          npm run server      # Express API + existing static dist; no rebui
 frontend:     npm run dev         # Vite dev server with /api proxy
 build:        npm run build       # frontend/ -> dist/
 start:        npm start           # build, serve dist/, and open the browser
+demo:         npm run build:demo  # static demo build with generated sample data
+demo:preview: npm run preview:demo
 test:focused: npm test -- test/llm-insights.test.js
 test:full:    npm test
 coverage:     npm run coverage

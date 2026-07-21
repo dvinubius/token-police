@@ -1,5 +1,6 @@
 <script>
   import { store, setPage } from '../store.svelte.js';
+  import { DEMO_MODE } from '../lib/index.js';
   import ThemeToggle from './ThemeToggle.svelte';
 
   const tabs = [
@@ -22,6 +23,9 @@
       <h1>Token Police</h1>
       <span class="brand-tagline">AGENTIC SURVEILLANCE</span>
     </div>
+    {#if DEMO_MODE}
+      <span class="demo-flag" title="Sample data — this deployment reads no local transcripts">Demo</span>
+    {/if}
   </div>
   <nav class="page-nav" aria-label="Primary">
     {#each tabs as tab (tab.target)}
